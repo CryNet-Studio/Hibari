@@ -26,4 +26,9 @@ internal object HibariLog {
     fun e(tag: String, message: () -> String) {
         Log.e(tag, message())
     }
+
+    /** Separate overload rather than a defaulted trailing `cause` so the lambda stays last. */
+    fun e(tag: String, message: () -> String, cause: Throwable) {
+        Log.e(tag, message(), cause)
+    }
 }

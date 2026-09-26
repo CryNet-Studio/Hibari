@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import org.lsposed.hiddenapibypass.HiddenApiBypass
+import java.lang.reflect.Method
 
 fun hibariRuntimeError(message: String, cause: Throwable? = null): Nothing = throw HibariRuntimeError(message, cause)
 
@@ -19,9 +20,13 @@ val hibariViewId = ViewCompat.generateViewId()
 
 val subcomposeLayoutId = ViewCompat.generateViewId()
 
-@SuppressLint("PrivateApi")
-fun invokeSetKeyedTag(view: View, key: Int, tag: Any?) {
-    try {
+/**
+ * The hidden `View.setKeyedTag` is looked up once instead of once per tagged write: every view
+ * creation writes two keyed tags, and listener-carrying attributes are re-applied on every
+ * reconfigure, so the lookup was a per-frame reflection cost.
+ */
+private val setKeyedTagMethod: Method? by lazy {
+    runCatching {
         val viewClass = View::class.java
         val method = if (Build.VERSION.SDK_INT >= 28) {
             HiddenApiBypass.getDeclaredMethod(viewClass, "setKeyedTag", Int::class.java, Any::class.java)
@@ -29,10 +34,20 @@ fun invokeSetKeyedTag(view: View, key: Int, tag: Any?) {
             viewClass.getDeclaredMethod("setKeyedTag", Int::class.java, Any::class.java)
         }
         method.isAccessible = true
+        method
+    }.getOrElse {
+        HibariLog.e("HibariTuner") { "Keyed tags are unavailable, view lookups by node key will fail: ${it.message}" }
+        null
+    }
+}
+
+@SuppressLint("PrivateApi")
+fun invokeSetKeyedTag(view: View, key: Int, tag: Any?) {
+    val method = setKeyedTagMethod ?: return
+    try {
         method.invoke(view, key, tag)
     } catch (e: Exception) {
-        println("Error invoking setKeyedTag: ${e.message}")
-        e.printStackTrace()
+        HibariLog.e("HibariTuner", { "Error invoking setKeyedTag: ${e.message}" }, e)
     }
 }
 

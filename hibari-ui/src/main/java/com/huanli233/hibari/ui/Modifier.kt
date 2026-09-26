@@ -39,6 +39,18 @@ private class CombinedModifier(
     override fun then(other: Modifier): Modifier =
         if (other === Modifier) this else CombinedModifier(this, other)
 
+    /**
+     * Value equality for the chain. Without it, comparing a retuned modifier was reference
+     * equality and therefore never equal, so every diff comparison fell through to flattening both
+     * chains into fresh lists and keying them into fresh maps. A true result here implies the
+     * attribute-wise comparison agrees, because that one inspects a subset of what is compared
+     * element by element below.
+     */
+    override fun equals(other: Any?): Boolean =
+        this === other || (other is CombinedModifier && outer == other.outer && inner == other.inner)
+
+    override fun hashCode(): Int = 31 * outer.hashCode() + inner.hashCode()
+
     override fun toString(): String {
         return "${outer}, $inner"
     }
