@@ -50,21 +50,39 @@ class Renderer(
         val hibariNodeKey = ViewCompat.generateViewId()
 
         val viewIds = mutableMapOf<String, Int>()
+
         fun generateViewId(id: String?): Pair<String, Int> {
-            fun doGenerate(id: String): Int {
-                val generateId = ViewCompat.generateViewId()
-                return viewIds.getOrPut(id) {
-                    generateId
-                }
-            }
+            // Only named ids can be resolved back through `String.viewId` / [findViewByHibariId],
+            // so only those are worth registering: memoizing an anonymous id would add one entry per
+            // rendered view to a static map that is never evicted from.
+            if (id == null) return generateRandomViewId() to ViewCompat.generateViewId()
             synchronized(this) {
-                val requireId = id ?: generateRandomViewId()
-                val viewId = doGenerate(requireId)
-                return requireId to viewId
+                viewIds[id]?.let { return id to it }
+                return id to ViewCompat.generateViewId().also { viewIds[id] = it }
             }
         }
 
         fun generateRandomViewId() = "anonymous@${UUID.randomUUID()}"
+
+        /**
+         * `ParentClass$LayoutParams` and its `(int, int)` constructor used to be resolved for every
+         * single view created. Both are stable per parent class — a miss included, which is why a
+         * failed lookup is cached as `null` instead of throwing again for each sibling.
+         */
+        private val layoutParamsConstructors = HashMap<String, Constructor<*>?>()
+
+        private fun layoutParamsConstructor(parentClass: Class<*>): Constructor<*>? {
+            val name = parentClass.name
+            if (layoutParamsConstructors.containsKey(name)) return layoutParamsConstructors[name]
+            val constructor = try {
+                Class.forName("${name}\$LayoutParams")
+                    .constructor { param(IntType, IntType) }.ignored().give()
+            } catch (_: ClassNotFoundException) {
+                null
+            }
+            layoutParamsConstructors[name] = constructor
+            return constructor
+        }
     }
 
     fun render(node: Node, parent: ViewGroup): View {
@@ -84,7 +102,9 @@ class Renderer(
         val id = (modifierAttrs.firstOrNull { it is IdAttribute } as? IdAttribute)?.id
         val intId = (modifierAttrs.firstOrNull { it is IntIdAttribute } as? IntIdAttribute)?.id
 
-        val (_, viewId) = generateViewId(id)
+        // Only the int is consumed below, so the anonymous case must not build a throwaway name for
+        // it — that was one UUID plus one formatted string per view created.
+        val viewId = if (id != null) generateViewId(id).second else ViewCompat.generateViewId()
 
         // A runtime `Modifier.attrs { }` synthesizes an AttributeSet from name/value pairs (no
         // compiled resource); it takes precedence over the @XmlRes path and is released as soon as
@@ -107,32 +127,23 @@ class Renderer(
         view?.let { view ->
             invokeSetKeyedTag(view, hibariViewId, id)
 
-            val lpClass = try {
-                Class.forName("${parent.javaClass.name}\$LayoutParams")
-            } catch (_: ClassNotFoundException) {
-                null
-            }
-            view.layoutParams = lpClass?.let {
-                it.constructor { param(IntType, IntType) }.ignored().give()
-                    ?.newInstance(
-                        LayoutParamsWrapContent,
-                        LayoutParamsWrapContent
-                    ) as ViewGroup.LayoutParams
-            } ?: parent.current(ignored = true).method {
-                name = "generateDefaultLayoutParams"
-                emptyParam()
-                superClass()
-            }.invoke() ?: ViewGroup.LayoutParams(
-                LayoutParamsWrapContent,
-                LayoutParamsWrapContent
-            )
+            view.layoutParams = layoutParamsConstructor(parent.javaClass)
+                ?.newInstance(LayoutParamsWrapContent, LayoutParamsWrapContent) as? ViewGroup.LayoutParams
+                ?: parent.current(ignored = true).method {
+                    name = "generateDefaultLayoutParams"
+                    emptyParam()
+                    superClass()
+                }.invoke() ?: ViewGroup.LayoutParams(
+                    LayoutParamsWrapContent,
+                    LayoutParamsWrapContent
+                )
 
             invokeSetKeyedTag(view, hibariNodeKey, node.key)
 
-            applyAttributes(view, modifierAttrs.mapNotNull { it as? Attribute<*> })
-            modifierAttrs.filter { it is RefModifier }.map { (it as? RefModifier)?.block }.forEach {
-                it?.invoke(view)
-            }
+            // Walked in place rather than through filtered intermediate lists: this ran per view
+            // created, and both passes are cheap enough to fold into one traversal each.
+            modifierAttrs.forEach { (it as? Attribute<*>)?.applyTo(view) }
+            modifierAttrs.forEach { if (it is RefModifier) it.block(view) }
         }
 
         return view ?: hibariRuntimeError("The view class ${viewClass.name} must have a constructor with two parameters of type Context and AttributeSet to apply attributes.")
@@ -164,7 +175,9 @@ class Renderer(
                     ?: twoParams?.apply { parameterCount = 2 }
             }
             val viewConstructor = constructor?.let { ViewConstructor(it, parameterCount) }
-            if (viewConstructor != null) viewConstructors[viewClass.name] = viewConstructor
+            // The lookup key has to be the one used above, otherwise every entry written here is
+            // unreachable and each view creation pays for two reflective constructor searches.
+            if (viewConstructor != null) viewConstructors[cacheKey] = viewConstructor
             viewConstructor
         }
     }
@@ -370,7 +383,7 @@ internal class LayoutNodeHost(context: Context) : ViewGroup(context) {
             return
         }
 
-        if (childMeasurables.size != childCount) {
+        if (childMeasurables.size != childCount || measurablesOutOfSync()) {
             childMeasurables.clear()
             (0 until childCount).forEach { i ->
                 val childView = getChildAt(i)
@@ -386,6 +399,20 @@ internal class LayoutNodeHost(context: Context) : ViewGroup(context) {
         setMeasuredDimension(rootPlaceable!!.width, rootPlaceable!!.height)
     }
 
+    /**
+     * The patcher replaces a child in place when a node's view class changed, which keeps
+     * [childCount] untouched — so the child count alone cannot say whether the cached measurables
+     * still wrap the live children. Without this check the host goes on measuring the detached old
+     * view and lays out nothing in its place.
+     */
+    private fun measurablesOutOfSync(): Boolean {
+        val children = node?.children
+        if (children?.size != childCount) return true
+        return (0 until childCount).any { i ->
+            childMeasurables[i].view !== getChildAt(i) || childMeasurables[i].node !== children?.getOrNull(i)
+        }
+    }
+
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         rootPlaceable?.placeAt(0, 0)
     }
@@ -397,7 +424,7 @@ internal class LayoutNodeHost(context: Context) : ViewGroup(context) {
 
 open class ViewMeasurable(
     val view: View,
-    private val node: Node?
+    val node: Node?
 ) : Measurable {
 
     private val measurementCache = mutableMapOf<Constraints, Placeable>()

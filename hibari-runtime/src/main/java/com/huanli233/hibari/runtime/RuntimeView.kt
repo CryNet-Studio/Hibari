@@ -3,8 +3,6 @@ package com.huanli233.hibari.runtime
 import android.view.View
 import android.view.ViewGroup
 import com.huanli233.hibari.runtime.Renderer.Companion.generateViewId
-import com.huanli233.hibari.runtime.Renderer.Companion.viewIds
-import kotlin.collections.set
 
 fun View.findViewByHibariId(id: String): View? {
     if (this is ViewGroup) {
@@ -48,8 +46,4 @@ inline fun <reified V : View> view(id: String) = currentTuner.tunation.hostView.
 inline fun <reified V : View> viewOrNull(id: String) = currentTuner.tunation.hostView.findViewByHibariId(id) as? V
 
 val String.viewId
-    get() = viewIds[this] ?: synchronized(Tuner::class.java) {
-        generateViewId(this).second.also {
-            viewIds[this] = it
-        }
-    }
+    get() = generateViewId(this).second

@@ -7,6 +7,7 @@ import com.huanli233.hibari.runtime.IdAttribute
 import com.huanli233.hibari.runtime.Renderer
 import com.huanli233.hibari.runtime.Tunable
 import com.huanli233.hibari.runtime.id
+import com.huanli233.hibari.runtime.intId
 import com.huanli233.hibari.runtime.viewId
 import com.huanli233.hibari.ui.Modifier
 import com.huanli233.hibari.ui.flattenToList
@@ -43,7 +44,14 @@ class ConstraintSetBuilder(
         constraintSet.connect(this.viewId, this.side, other.viewId, other.side)
     }
 
-    object parent {
+    /**
+     * The layout's own anchors, spelled through a property: a nested classifier is not reachable by
+     * simple name from the implicit receiver of `constraint { }`, so `parent.top` resolved for no
+     * caller at all while `parent` was only a nested `object`.
+     */
+    val parent = ParentAnchors
+
+    object ParentAnchors {
         val top = VerticalAnchor(ConstraintSet.PARENT_ID, ConstraintSet.TOP)
         val bottom = VerticalAnchor(ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM)
         val start = HorizontalAnchor(ConstraintSet.PARENT_ID, ConstraintSet.START)
@@ -91,16 +99,24 @@ interface ConstraintLayoutScope {
     fun Modifier.constraint(block: ConstraintSetBuilder.() -> Unit): Modifier
 }
 
-internal object ConstraintLayoutScopeInstance : ConstraintLayoutScope {
-    lateinit var constraintSet: ConstraintSet
+/**
+ * One scope per [ConstraintLayout] call, owning the [ConstraintSet] its children write into. This
+ * used to be a shared singleton holding the current set in a field, which a nested
+ * `ConstraintLayout` could not survive: it left its own set behind, so every sibling emitted after
+ * it connected its views to the inner layout instead of the outer one.
+ */
+internal class ConstraintLayoutScopeImpl(
+    private val constraintSet: ConstraintSet
+) : ConstraintLayoutScope {
 
     override fun Modifier.constraint(block: ConstraintSetBuilder.() -> Unit): Modifier {
         val (id, viewId) = this.getViewId()
 
-        val builder = ConstraintSetBuilder(viewId, constraintSet)
-        builder.block()
+        ConstraintSetBuilder(viewId, constraintSet).block()
 
-        return id(id)
+        // The int is pinned next to the string: without an explicit `id` the string above is
+        // anonymous, and only this exact int is guaranteed to be the one the set was built with.
+        return id(id).intId(viewId)
     }
 
     private fun Modifier.getViewId(): Pair<String, Int> {
@@ -117,7 +133,7 @@ fun ConstraintLayout(
     content: @Tunable ConstraintLayoutScope.() -> Unit
 ) {
     val constraintSet = ConstraintSet()
-    ConstraintLayoutScopeInstance.constraintSet = constraintSet
+    val scope = ConstraintLayoutScopeImpl(constraintSet)
 
     Node(
         modifier = modifier
@@ -126,7 +142,7 @@ fun ConstraintLayout(
                 it.applyTo(this)
             },
         content = {
-            ConstraintLayoutScopeInstance.content()
+            scope.content()
         }
     )
 }

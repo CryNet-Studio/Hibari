@@ -21,12 +21,14 @@ import com.huanli233.hibari.foundation.attributes.matchParentWidth
 import com.huanli233.hibari.foundation.attributes.onClick
 import com.huanli233.hibari.foundation.attributes.scaleX
 import com.huanli233.hibari.foundation.attributes.scaleY
+import com.huanli233.hibari.material.ConstraintLayout
 import com.huanli233.hibari.material.Text
 import com.huanli233.hibari.runtime.HibariView
 import com.huanli233.hibari.runtime.attribute.attrs
 import com.huanli233.hibari.runtime.currentContext
 import com.huanli233.hibari.runtime.effects.LaunchedEffect
 import com.huanli233.hibari.runtime.getValue
+import com.huanli233.hibari.runtime.id
 import com.huanli233.hibari.runtime.mutableStateOf
 import com.huanli233.hibari.runtime.remember
 import com.huanli233.hibari.runtime.setValue
@@ -78,6 +80,39 @@ class TestActivity: AppCompatActivity() {
                         ) {
                             Text("test")
                         }
+                    }
+                    // ConstraintLayout smoke test. The nested layout used to leave its ConstraintSet
+                    // behind for the sibling emitted after it, so "cl bottom" ended up constrained
+                    // inside the inner layout and disappeared. Children carry an explicit id because
+                    // an anonymous one is regenerated on every retune.
+                    ConstraintLayout(modifier = Modifier.matchParentSize()) {
+                        Text(
+                            "cl top",
+                            Modifier.id("cl-top").constraint {
+                                top constraintTo parent.top
+                                start constraintTo parent.start
+                            }
+                        )
+                        ConstraintLayout(
+                            modifier = Modifier.id("cl-inner").constraint {
+                                top constraintTo parent.top
+                                end constraintTo parent.end
+                            }
+                        ) {
+                            Text(
+                                "cl nested",
+                                Modifier.id("cl-nested").constraint {
+                                    top constraintTo parent.top
+                                }
+                            )
+                        }
+                        Text(
+                            "cl bottom",
+                            Modifier.id("cl-bottom").constraint {
+                                bottom constraintTo parent.bottom
+                                start constraintTo parent.start
+                            }
+                        )
                     }
                     // Runtime-attrs smoke test: textColor/textSize arrive only through the
                     // synthesized AttributeSet, not through any typed Modifier.

@@ -14,7 +14,17 @@ private const val TAG = "HibariDiff"
 
 class Patcher(val renderer: Renderer) {
 
-    private fun ViewGroup.findViewByKey(key: Any?): View? {
+    /**
+     * Matches a child by node key. [atPosition] is where the caller expects that key to live: a
+     * parent whose views mirror its node list hits there, which turns a scan that DiffUtil would
+     * otherwise pay once per dispatched operation into a single tag check. The scan stays as the
+     * fallback for parents that hold views of their own.
+     */
+    private fun ViewGroup.findViewByKey(key: Any?, atPosition: Int = -1): View? {
+        if (atPosition in 0 until childCount) {
+            val child = getChildAt(atPosition)
+            if (child.getTag(hibariNodeKey) == key) return child
+        }
         return this.children.find { it.getTag(hibariNodeKey) == key }
     }
 
@@ -51,7 +61,9 @@ class Patcher(val renderer: Renderer) {
                 HibariLog.d(TAG) { "onRemoved(pos=$position, count=$count) on parent $parentId" }
                 for (i in 0 until count) {
                     val oldNode = oldChildren[position + i]
-                    val viewToRemove = parentView.findViewByKey(oldNode.key)
+                    // Every removal shifts the remaining children back into `position`, so that is
+                    // the slot to check for each of them.
+                    val viewToRemove = parentView.findViewByKey(oldNode.key, position)
                     if (viewToRemove != null) {
                         parentView.removeView(viewToRemove)
                         HibariLog.d(TAG) { "  -> Removed view ${viewToRemove.javaClass.simpleName} with key ${oldNode.key}" }
@@ -64,7 +76,7 @@ class Patcher(val renderer: Renderer) {
             override fun onMoved(fromPosition: Int, toPosition: Int) {
                 HibariLog.d(TAG) { "onMoved(from=$fromPosition, to=$toPosition) on parent $parentId" }
                 val nodeToMove = oldChildren[fromPosition]
-                val viewToMove = parentView.findViewByKey(nodeToMove.key)
+                val viewToMove = parentView.findViewByKey(nodeToMove.key, fromPosition)
 
                 if (viewToMove != null) {
                     parentView.removeView(viewToMove)
@@ -81,13 +93,12 @@ class Patcher(val renderer: Renderer) {
                     val currentPos = position + i
                     val newNode = newChildren[position + i]
 
-                    val viewToUpdate = parentView.findViewByKey(newNode.key)
+                    val viewToUpdate = parentView.findViewByKey(newNode.key, currentPos)
 
                     if (viewToUpdate == null) {
+                        HibariLog.e(TAG) { "  -> FAILED to find view to update for key ${newNode.key}" }
                         continue
                     }
-
-                    val oldNode = oldChildren.find { it.key == newNode.key }
 
                     HibariLog.d(TAG) {
                         val nodeViewClass = (newNode.modifier.flattenToList()
@@ -96,15 +107,20 @@ class Patcher(val renderer: Renderer) {
                         "  -> Preparing to update view: ${viewToUpdate.javaClass.simpleName} [key=${newNode.key}] with data from node for: $nodeViewClass"
                     }
 
-                    if (payload != null && payload is HibariDiffCallback.ModifierChangePayload) {
+                    if (payload is HibariDiffCallback.ModifierChangePayload) {
+                        // A reused host keeps its measure policy's node, so the measurables and their
+                        // parent data would otherwise stay pointed at the previous tune.
+                        if (viewToUpdate is LayoutNodeHost) viewToUpdate.node = newNode
                         if (payload.changedAttributes.isNotEmpty()) {
                             renderer.applyAttributes(viewToUpdate, payload.changedAttributes)
                         }
-                        if (payload.isChildrenChanged && viewToUpdate is ViewGroup && oldNode != null) {
-                            patch(viewToUpdate, oldNode.children, newNode.children)
+                        if (payload.isChildrenChanged && viewToUpdate is ViewGroup) {
+                            patch(viewToUpdate, payload.oldNode.children, newNode.children)
                         }
                     } else {
-                        parentView.removeViewAt(currentPos)
+                        // Removed by reference: the key may not sit at `currentPos` in a parent that
+                        // owns extra views, and removing by index would drop an unrelated child.
+                        parentView.removeView(viewToUpdate)
 
                         val newView = renderer.render(newNode, parentView)
                         parentView.addView(newView, currentPos)

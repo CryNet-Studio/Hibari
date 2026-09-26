@@ -1,6 +1,5 @@
 package com.huanli233.hibari.runtime
 
-import android.util.Log
 import androidx.recyclerview.widget.DiffUtil
 import com.huanli233.hibari.runtime.attribute.RuntimeAttrsAttribute
 import com.huanli233.hibari.ui.Attribute
@@ -19,7 +18,15 @@ class HibariDiffCallback(
     private val newList: List<Node>
 ) : DiffUtil.Callback() {
 
-    data class ModifierChangePayload(val changedAttributes: List<Attribute<*>>, val isChildrenChanged: Boolean)
+    /**
+     * [oldNode] travels with the payload because it is the exact node this change was computed for:
+     * recovering it in the patcher would mean another scan of the old list per changed item.
+     */
+    data class ModifierChangePayload(
+        val changedAttributes: List<Attribute<*>>,
+        val isChildrenChanged: Boolean,
+        val oldNode: Node
+    )
 
     override fun getOldListSize(): Int = oldList.size
     override fun getNewListSize(): Int = newList.size
@@ -117,8 +124,7 @@ class HibariDiffCallback(
         val isChildrenChanged = oldNode.children != newNode.children
 
         return if (changedReusableMods.isNotEmpty() || isChildrenChanged) {
-            val payload = ModifierChangePayload(changedReusableMods, isChildrenChanged)
-            payload
+            ModifierChangePayload(changedReusableMods, isChildrenChanged, oldNode)
         } else {
             null
         }
