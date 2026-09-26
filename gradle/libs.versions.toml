@@ -21,6 +21,7 @@ lint = "31.11.0"
 uiExtension = "1.0.6"
 viewpager2 = "1.0.0"
 yukireflection = "1.0.3"
+kavaref = "1.0.1"
 hiddenapibypass = "6.1"
 autoserviceAnnotations = "1.1.1"
 autoserviceKsp = "1.2.0"
@@ -48,6 +49,8 @@ lint-checks = { group = "com.android.tools.lint", name = "lint-checks", version.
 lint-tests = { group = "com.android.tools.lint", name = "lint-tests", version.ref = "lint" }
 ui-extension = { module = "com.huanli233.betterandroid.compat:ui-extension", version.ref = "uiExtension" }
 yukireflection = { group = "com.highcapable.yukireflection", name = "api", version.ref = "yukireflection" }
+kavaref-core = { group = "com.highcapable.kavaref", name = "kavaref-core", version.ref = "kavaref" }
+kavaref-extension = { group = "com.highcapable.kavaref", name = "kavaref-extension", version.ref = "kavaref" }
 hiddenapibypass = { group = "org.lsposed.hiddenapibypass", name = "hiddenapibypass", version.ref = "hiddenapibypass" }
 kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlin" }
 kotlin-compiler = { group = "org.jetbrains.kotlin", name = "kotlin-compiler-embeddable", version.ref = "kotlin" }

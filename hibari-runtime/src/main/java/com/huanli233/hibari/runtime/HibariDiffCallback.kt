@@ -2,6 +2,7 @@ package com.huanli233.hibari.runtime
 
 import android.util.Log
 import androidx.recyclerview.widget.DiffUtil
+import com.huanli233.hibari.runtime.attribute.RuntimeAttrsAttribute
 import com.huanli233.hibari.ui.Attribute
 import com.huanli233.hibari.ui.AttrsAttribute
 import com.huanli233.hibari.ui.ViewClassAttribute
@@ -57,7 +58,8 @@ class HibariDiffCallback(
         val result = (oldMods.viewAttributes().associateBy { it.key } == newMods.viewAttributes().associateBy { it.key }) &&
                 (oldMods.layoutAttributes().associateBy { it.key } == newMods.layoutAttributes().associateBy { it.key }) &&
                 (oldMods.firstOrNull { it is ViewClassAttribute } == newMods.firstOrNull { it is ViewClassAttribute }) &&
-                (oldMods.firstOrNull { it is AttrsAttribute } == newMods.firstOrNull { it is AttrsAttribute })
+                (oldMods.firstOrNull { it is AttrsAttribute } == newMods.firstOrNull { it is AttrsAttribute }) &&
+                (oldMods.firstOrNull { it is RuntimeAttrsAttribute } == newMods.firstOrNull { it is RuntimeAttrsAttribute })
 
         return result
     }
@@ -72,6 +74,14 @@ class HibariDiffCallback(
         val oldViewClassAttr = oldMods.firstOrNull { it is ViewClassAttribute } as? ViewClassAttribute
         val newViewClassAttr = newMods.firstOrNull { it is ViewClassAttribute } as? ViewClassAttribute
         if (oldViewClassAttr?.viewClass != newViewClassAttr?.viewClass) {
+            return null
+        }
+
+        // Runtime attrs are consumed by the (Context, AttributeSet) constructor only, so a change
+        // cannot be applied via a reusable-attribute payload: force a recreate.
+        val oldRuntimeAttrs = oldMods.firstOrNull { it is RuntimeAttrsAttribute } as? RuntimeAttrsAttribute
+        val newRuntimeAttrs = newMods.firstOrNull { it is RuntimeAttrsAttribute } as? RuntimeAttrsAttribute
+        if (oldRuntimeAttrs != newRuntimeAttrs) {
             return null
         }
 

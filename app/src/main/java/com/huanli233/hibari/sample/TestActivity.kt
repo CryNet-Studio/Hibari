@@ -14,6 +14,7 @@ import com.huanli233.hibari.animation.fadeOut
 import com.huanli233.hibari.animation.updateTransition
 import com.huanli233.hibari.foundation.Box
 import com.huanli233.hibari.foundation.Column
+import com.huanli233.hibari.foundation.Node
 import com.huanli233.hibari.foundation.attributes.alpha
 import com.huanli233.hibari.foundation.attributes.matchParentSize
 import com.huanli233.hibari.foundation.attributes.matchParentWidth
@@ -22,6 +23,7 @@ import com.huanli233.hibari.foundation.attributes.scaleX
 import com.huanli233.hibari.foundation.attributes.scaleY
 import com.huanli233.hibari.material.Text
 import com.huanli233.hibari.runtime.HibariView
+import com.huanli233.hibari.runtime.attribute.attrs
 import com.huanli233.hibari.runtime.currentContext
 import com.huanli233.hibari.runtime.effects.LaunchedEffect
 import com.huanli233.hibari.runtime.getValue
@@ -29,6 +31,7 @@ import com.huanli233.hibari.runtime.mutableStateOf
 import com.huanli233.hibari.runtime.remember
 import com.huanli233.hibari.runtime.setValue
 import com.huanli233.hibari.ui.Modifier
+import com.huanli233.hibari.ui.viewClass
 
 class TestActivity: AppCompatActivity() {
 
@@ -76,6 +79,18 @@ class TestActivity: AppCompatActivity() {
                             Text("test")
                         }
                     }
+                    // Runtime-attrs smoke test: textColor/textSize arrive only through the
+                    // synthesized AttributeSet, not through any typed Modifier.
+                    Node(
+                        modifier = Modifier
+                            .gravity(Gravity.CENTER)
+                            .viewClass(android.widget.TextView::class.java)
+                            .attrs {
+                                set("android:text", "runtime attrs")
+                                set("android:textColor", 0xFFE91E63.toInt())
+                                set("android:textSize", "22sp")
+                            }
+                    )
                 }
             }
         )

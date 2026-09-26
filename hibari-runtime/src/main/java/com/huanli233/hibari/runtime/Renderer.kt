@@ -19,6 +19,8 @@ import com.highcapable.yukireflection.type.android.ContextClass
 import com.highcapable.yukireflection.type.android.ViewGroup_LayoutParamsClass
 import com.highcapable.yukireflection.type.java.IntType
 import com.huanli233.hibari.runtime.bypass.XmlBlockBypass
+import com.huanli233.hibari.runtime.attribute.AttributeSetResolver
+import com.huanli233.hibari.runtime.attribute.RuntimeAttrsAttribute
 import com.huanli233.hibari.ui.Attribute
 import com.huanli233.hibari.ui.AttrsAttribute
 import com.huanli233.hibari.ui.HibariFactory
@@ -78,13 +80,24 @@ class Renderer(
         val viewClass = (modifierAttrs.firstOrNull { it is ViewClassAttribute } as? ViewClassAttribute)?.viewClass
             ?: hibariRuntimeError("The view class cannot be null.")
         val attrXml = (modifierAttrs.firstOrNull { it is AttrsAttribute } as? AttrsAttribute)?.attrs ?: -1
+        val runtimeAttrs = modifierAttrs.firstOrNull { it is RuntimeAttrsAttribute } as? RuntimeAttrsAttribute
         val id = (modifierAttrs.firstOrNull { it is IdAttribute } as? IdAttribute)?.id
         val intId = (modifierAttrs.firstOrNull { it is IntIdAttribute } as? IntIdAttribute)?.id
 
         val (_, viewId) = generateViewId(id)
 
-        val attrs = createAttributeSet(parent.context, attrXml)
-        val view = createViewFromFactory(viewClass, parent.context, attrs) ?: getViewConstructor(viewClass, attrXml != -1)?.build(parent.context, attrs)
+        // A runtime `Modifier.attrs { }` synthesizes an AttributeSet from name/value pairs (no
+        // compiled resource); it takes precedence over the @XmlRes path and is released as soon as
+        // the (Context, AttributeSet) constructor has consumed it.
+        val resolver = runtimeAttrs?.let { AttributeSetResolver.from(parent.context) }
+        val runtimeParser = resolver?.let { it.newParser(runtimeAttrs!!.items) }
+        val attrs = runtimeParser ?: createAttributeSet(parent.context, attrXml)
+        val hasAttrs = runtimeAttrs != null || attrXml != -1
+        val view = createViewFromFactory(viewClass, parent.context, attrs) ?: getViewConstructor(viewClass, hasAttrs)?.build(parent.context, attrs)
+        if (runtimeParser != null && resolver != null) {
+            resolver.release(runtimeParser)
+            resolver.close()
+        }
 
         if (intId != null) {
             view?.id = intId

@@ -47,6 +47,8 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.yukireflection)
     implementation(libs.hiddenapibypass)
+    implementation(libs.kavaref.core)
+    implementation(libs.kavaref.extension)
     implementation(libs.androidx.collection)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
