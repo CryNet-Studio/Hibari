@@ -13,6 +13,7 @@ import com.huanli233.hibari.ui.text.TextTruncateAt
 import com.huanli233.hibari.ui.thenViewAttribute
 import com.huanli233.hibari.ui.uniqueKey
 import com.huanli233.hibari.ui.unit.TextUnit
+import com.huanli233.hibari.ui.unit.isUnspecified
 
 fun Modifier.text(text: CharSequence): Modifier {
     return this.then(ViewAttribute(uniqueKey, object : AttributeApplier<TextView, CharSequence> {
@@ -23,6 +24,9 @@ fun Modifier.text(text: CharSequence): Modifier {
 }
 
 fun Modifier.textSize(textSize: TextUnit): Modifier {
+    // TextUnit.Unspecified.value is NaN: applying it overwrites the themed size with an invalid
+    // value, and NaN != NaN makes the diff see the attribute as changed on every reconfigure.
+    if (textSize.isUnspecified) return this
     return this.then(ViewAttribute(uniqueKey, object : AttributeApplier<TextView, Float> {
         override fun apply(target: TextView, value: Float) {
             target.textSize = value

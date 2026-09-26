@@ -1,9 +1,5 @@
 package com.huanli233.hibari.runtime
 
-import android.os.Build
-import android.os.Handler
-import android.os.Looper
-import android.view.Choreographer
 import com.huanli233.hibari.ui.HibariFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -11,10 +7,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.resume
 
 class Retuner(
     private val coroutineContext: CoroutineContext,
@@ -26,10 +20,6 @@ class Retuner(
     @Volatile
     private var currentTuneJob: Job? = null
     private var isRunning = false
-
-    companion object {
-        private val mainHandler = Handler(Looper.getMainLooper())
-    }
 
     fun scheduleRetune(session: Tunation) {
         if (invalidations.add(session)) {
@@ -79,23 +69,5 @@ class Retuner(
             invalidations.poll()?.let { sessions.add(it) }
         }
         return sessions
-    }
-
-    private suspend fun awaitFrame() {
-        return suspendCancellableCoroutine { continuation ->
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-                Choreographer.getInstance().postFrameCallback {
-                    if (continuation.isActive) {
-                        continuation.resume(Unit)
-                    }
-                }
-            } else {
-                mainHandler.postDelayed({
-                    if (continuation.isActive) {
-                        continuation.resume(Unit)
-                    }
-                }, 16)
-            }
-        }
     }
 }

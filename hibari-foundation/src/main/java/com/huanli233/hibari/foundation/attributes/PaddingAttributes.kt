@@ -8,6 +8,8 @@ import com.huanli233.hibari.ui.uniqueKey
 import com.huanli233.hibari.ui.unit.Dp
 import com.huanli233.hibari.ui.unit.LayoutDirection
 import com.huanli233.hibari.ui.unit.PaddingValues
+import com.huanli233.hibari.ui.unit.dp
+import com.huanli233.hibari.ui.unit.takeOrElse
 import com.huanli233.hibari.ui.unit.toPx
 
 fun Modifier.padding(paddingValues: PaddingValues): Modifier {
@@ -45,7 +47,17 @@ fun Modifier.padding(
     right: Dp = Dp.Unspecified,
     bottom: Dp = Dp.Unspecified
 ): Modifier {
-    return padding(PaddingValues(start = left, top = top, end = right, bottom = bottom))
+    // Absolute (RTL-unaware) overload: route through PaddingValues.Absolute, NOT start/end, or the
+    // left/right edges would swap once the layout direction is RTL. PaddingValues.Absolute rejects
+    // NaN, so an unspecified edge is coerced to 0.dp (its meaning everywhere else here).
+    return padding(
+        PaddingValues.Absolute(
+            left = left.takeOrElse { 0.dp },
+            top = top.takeOrElse { 0.dp },
+            right = right.takeOrElse { 0.dp },
+            bottom = bottom.takeOrElse { 0.dp }
+        )
+    )
 }
 
 fun Modifier.paddingRelative(

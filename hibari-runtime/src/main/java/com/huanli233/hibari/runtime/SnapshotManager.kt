@@ -43,7 +43,12 @@ object SnapshotManager {
 
     fun clearDependencies(tunation: Tunation) {
         tunationToStatesMap[tunation]?.forEach { stateObject ->
-            stateToTunationsMap[stateObject]?.remove(tunation)
+            stateToTunationsMap[stateObject]?.let { observers ->
+                observers.remove(tunation)
+                // Drop the key once it has no readers left, otherwise a disposed state that was
+                // only ever read by this tunation stays strongly reachable (as a map key) forever.
+                if (observers.isEmpty()) stateToTunationsMap.remove(stateObject)
+            }
         }
         tunationToStatesMap.remove(tunation)
     }

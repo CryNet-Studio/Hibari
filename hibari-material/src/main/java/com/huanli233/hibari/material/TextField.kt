@@ -1,15 +1,20 @@
 package com.huanli233.hibari.material
 
+import android.text.TextWatcher
+import androidx.core.view.ViewCompat
 import androidx.core.widget.doOnTextChanged
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.huanli233.hibari.foundation.Node
 import com.huanli233.hibari.runtime.Tunable
+import com.huanli233.hibari.runtime.invokeSetKeyedTag
 import com.huanli233.hibari.ui.Modifier
 import com.huanli233.hibari.ui.thenViewAttribute
 import com.huanli233.hibari.ui.thenViewAttributeIfNotNull
 import com.huanli233.hibari.ui.uniqueKey
 import com.huanli233.hibari.ui.viewClass
+
+private val textFieldWatcherKey = ViewCompat.generateViewId()
 
 @Tunable
 fun TextField(
@@ -85,12 +90,16 @@ private fun TextInputEditText(
             }
             .thenViewAttribute<TextInputEditText, (String) -> Unit>(uniqueKey, onValueChange) { listener ->
                 val currentValue = value
-                doOnTextChanged { text, _, _, _ ->
+                // Same as EditText: the listener attribute re-applies every tune, so remove the
+                // previously installed watcher before adding a new one to avoid stacking.
+                (getTag(textFieldWatcherKey) as? TextWatcher)?.let { removeTextChangedListener(it) }
+                val watcher = doOnTextChanged { text, _, _, _ ->
                     val newText = text.toString()
                     if (newText != currentValue) {
                         listener(newText)
                     }
                 }
+                invokeSetKeyedTag(this, textFieldWatcherKey, watcher)
             }
             .thenViewAttributeIfNotNull<TextInputEditText, CharSequence>(uniqueKey, hint) { this.hint = it }
             .thenViewAttributeIfNotNull<TextInputEditText, Int>(uniqueKey, inputType) { this.inputType = it }

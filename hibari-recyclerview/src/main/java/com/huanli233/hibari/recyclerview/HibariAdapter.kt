@@ -14,9 +14,10 @@ data class LazyListItem(
 ) {
 
     override fun hashCode(): Int {
+        // Must stay consistent with equals(), which ignores `content`. Including it would let two
+        // items that compare equal land in different hash buckets.
         var result = key?.hashCode() ?: 0
         result = 31 * result + (contentType?.hashCode() ?: 0)
-        result = 31 * result + content.hashCode()
         return result
     }
 

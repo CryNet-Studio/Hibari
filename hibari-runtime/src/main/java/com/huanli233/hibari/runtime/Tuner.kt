@@ -2,7 +2,6 @@ package com.huanli233.hibari.runtime
 
 import android.annotation.SuppressLint
 import android.os.Build
-import android.util.Log
 import android.view.View
 import androidx.core.view.ViewCompat
 import com.huanli233.hibari.runtime.snapshots.Snapshot
@@ -109,29 +108,24 @@ open class Tuner(
     }
 
     fun endGroup(key: Int) {
-        val currentPath = walker.path()
         walker.end()
     }
 
     fun startComposition() {
-        Log.i(TAG, "======== START COMPOSITION ========")
+        HibariLog.i(TAG) { "======== START COMPOSITION ========" }
         walker.clear()
         nodeStack.addFirst(mutableListOf())
     }
 
     fun endComposition(): List<Node> {
-        val nodeCount = nodeStack.firstOrNull()?.size ?: 0
-        Log.i(TAG, "======== END COMPOSITION (Root nodes: $nodeCount) ========")
+        if (HibariLog.enabled) {
+            val nodeCount = nodeStack.firstOrNull()?.size ?: 0
+            HibariLog.i(TAG) { "======== END COMPOSITION (Root nodes: $nodeCount) ========" }
+        }
         if (nodeStack.size != 1) {
             hibariRuntimeError("Composition stack imbalance. Mismatched start/end calls.")
         }
         return nodeStack.removeFirst()
-    }
-
-    fun rememberedKeys(): Any? {
-        val path = walker.path()
-        val value = memory[path]
-        return value
     }
 
     fun rememberedValue(): Any? {
@@ -180,7 +174,7 @@ open class Tuner(
     fun <T> runTunable(content: @Tunable () -> T) = content()
 
     fun runTunable(tunation: Tunation) {
-        Log.i(TAG, ">>>>>> runTunable for [${tunation}] <<<<<<")
+        HibariLog.i(TAG) { ">>>>>> runTunable for [$tunation] <<<<<<" }
         walker.clear()
         SnapshotManager.clearDependencies(tunation)
         val snapshot = Snapshot.takeMutableSnapshot(
@@ -197,7 +191,7 @@ open class Tuner(
     @Tunable
     fun emitNode(node: Node, content: @Tunable () -> Unit = {}): Node {
         node.key = walker.path()
-        Log.d(TAG, "emitNode() at path '${node.key}'. Node: $node")
+        HibariLog.d(TAG) { "emitNode() at path '${node.key}'. Node: $node" }
         nodeStack.addFirst(mutableListOf())
         runTunable(content)
         val children = nodeStack.removeFirst()
