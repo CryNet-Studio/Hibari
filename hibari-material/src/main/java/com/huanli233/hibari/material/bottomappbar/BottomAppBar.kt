@@ -111,6 +111,9 @@ fun BottomAppBar(
                 onScrollStateChanged
             ) { listener ->
                 val behavior = getBehavior()
+                // addOnScrollStateChangedListener appends; clear first so it does not stack one per
+                // reconfigure (the listener attribute re-applies every tune).
+                behavior.clearOnScrollStateChangedListeners()
                 behavior.addOnScrollStateChangedListener { bottomView, newState ->
                     listener(
                         bottomView,

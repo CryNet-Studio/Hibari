@@ -29,10 +29,13 @@ fun TabLayout(
                     this.removeAllTabs()
                     it.forEach { item ->
                         this.addTab(this.newTab().setText(item.text).run {
-                            when (item.icon) {
-                                is Int -> setIcon(item.icon)
-                                is Drawable -> setIcon(item.icon)
-                                else -> error("Unsupported icon type: ${item.icon!!::class.java}")
+                            when (val icon = item.icon) {
+                                is Int -> setIcon(icon)
+                                is Drawable -> setIcon(icon)
+                                // A text-only tab is valid; clear the icon instead of throwing
+                                // (the old else branch hit `item.icon!!` -> NPE on a null icon).
+                                null -> setIcon(null as Drawable?)
+                                else -> error("Unsupported icon type: ${icon::class.java}")
                             }
                         })
                     }
@@ -40,10 +43,11 @@ fun TabLayout(
                     it.forEachIndexed { index, item ->
                         this.getTabAt(index)?.let { tab ->
                             tab.text = item.text
-                            when (item.icon) {
-                                is Int -> tab.setIcon(item.icon)
-                                is Drawable -> tab.setIcon(item.icon)
-                                else -> error("Unsupported icon type: ${item.icon!!::class.java}")
+                            when (val icon = item.icon) {
+                                is Int -> tab.setIcon(icon)
+                                is Drawable -> tab.setIcon(icon)
+                                null -> tab.setIcon(null as Drawable?)
+                                else -> error("Unsupported icon type: ${icon::class.java}")
                             }
                         }
                     }

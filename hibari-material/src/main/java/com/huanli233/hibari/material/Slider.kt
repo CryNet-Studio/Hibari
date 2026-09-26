@@ -26,7 +26,9 @@ fun Slider(
                 if (this.value != it) this.value = it
             }
             .thenViewAttribute<Slider, (Float) -> Unit>(uniqueKey, onValueChange) { listener ->
-                clearOnSliderTouchListeners()
+                // addOnChangeListener appends to the change-listener list; clearOnSliderTouchListeners
+                // clears a different list, so change listeners piled up one per reconfigure.
+                clearOnChangeListeners()
                 addOnChangeListener { _, value, _ -> listener(value) }
             }
             .thenViewAttributeIfNotNull<Slider, Float>(uniqueKey, valueFrom) { this.valueFrom = it }
@@ -51,7 +53,7 @@ fun RangeSlider(
                 if (this.values != it) this.values = it
             }
             .thenViewAttribute<RangeSlider, (List<Float>) -> Unit>(uniqueKey, onValueChange) { listener ->
-                clearOnSliderTouchListeners()
+                clearOnChangeListeners()
                 addOnChangeListener { _, _, _ -> listener(this.values) }
             }
             .thenViewAttributeIfNotNull<RangeSlider, Float>(uniqueKey, valueFrom) { this.valueFrom = it }

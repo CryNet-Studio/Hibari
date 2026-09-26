@@ -18,12 +18,17 @@ import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.google.android.material.appbar.MaterialToolbar
 import com.huanli233.hibari.foundation.Node
 import com.huanli233.hibari.runtime.Tunable
+import com.huanli233.hibari.runtime.invokeSetKeyedTag
 import com.huanli233.hibari.ui.Modifier
 import com.huanli233.hibari.ui.thenLayoutAttribute
 import com.huanli233.hibari.ui.thenViewAttributeIfNotNull
 import com.huanli233.hibari.ui.uniqueKey
 import com.huanli233.hibari.ui.viewClass
 import kotlin.math.min
+
+// Slot for the single OnOffsetChangedListener this component installed; Material has no
+// clear-all for offset listeners, so the previous one is removed by reference before re-adding.
+private val appBarOffsetListenerKey = ViewCompat.generateViewId()
 
 @Tunable
 fun AppBarLayout(
@@ -60,9 +65,17 @@ fun AppBarLayout(
                 }
             }
             .thenViewAttributeIfNotNull<AppBarLayout, (AppBarLayout, Int) -> Unit>(uniqueKey, onOffsetChanged) { listener ->
-                addOnOffsetChangedListener(AppBarLayout.OnOffsetChangedListener(listener))
+                // addOnOffsetChangedListener appends and Material 1.14 has no clear-all for offset
+                // listeners, so drop the previously installed one by reference; otherwise it stacks
+                // one per reconfigure (the listener attribute re-applies every tune).
+                val offsetListener = AppBarLayout.OnOffsetChangedListener(listener)
+                (getTag(appBarOffsetListenerKey) as? AppBarLayout.OnOffsetChangedListener)
+                    ?.let { removeOnOffsetChangedListener(it) }
+                addOnOffsetChangedListener(offsetListener)
+                invokeSetKeyedTag(this, appBarOffsetListenerKey, offsetListener)
             }
             .thenViewAttributeIfNotNull<AppBarLayout, (Float, Int) -> Unit>(uniqueKey, onLiftStateChanged) { listener ->
+                clearLiftOnScrollListener()
                 addLiftOnScrollListener { lift, elevation -> listener(lift, elevation) }
             },
         content = {
