@@ -53,17 +53,29 @@ class HibariDiffCallback(
                     runtimeAttrsAttribute == other.runtimeAttrsAttribute
     }
 
-    private val oldFacts = HashMap<Int, NodeFacts>()
-    private val newFacts = HashMap<Int, NodeFacts>()
+    /**
+     * All three caches answer only questions a fully unchanged tree never asks, so none of them is
+     * built until the first question: they used to cost three empty collections per container per
+     * patch, and one float changing on a frame is the common case.
+     */
+    private var oldFacts: HashMap<Int, NodeFacts>? = null
+    private var newFacts: HashMap<Int, NodeFacts>? = null
 
-    /** Keyed by the new node, paired with the old node the verdict was computed against. */
-    private val childrenVerdicts = IdentityHashMap<Node, Pair<Node, Boolean>>()
+    /** Keyed by the new node, holding the old node the verdict was computed against. */
+    private var childrenVerdicts: IdentityHashMap<Node, Pair<Node, Boolean>>? = null
 
-    private fun oldFactsAt(position: Int): NodeFacts =
-        oldFacts.getOrPut(position) { NodeFacts(oldList[position]) }
+    private fun oldFactsAt(position: Int): NodeFacts {
+        val cache = oldFacts ?: HashMap<Int, NodeFacts>().also { oldFacts = it }
+        return cache.getOrPut(position) { NodeFacts(oldList[position]) }
+    }
 
-    private fun newFactsAt(position: Int): NodeFacts =
-        newFacts.getOrPut(position) { NodeFacts(newList[position]) }
+    private fun newFactsAt(position: Int): NodeFacts {
+        val cache = newFacts ?: HashMap<Int, NodeFacts>().also { newFacts = it }
+        return cache.getOrPut(position) { NodeFacts(newList[position]) }
+    }
+
+    private fun verdicts(): IdentityHashMap<Node, Pair<Node, Boolean>> =
+        childrenVerdicts ?: IdentityHashMap<Node, Pair<Node, Boolean>>().also { childrenVerdicts = it }
 
     /**
      * Whether a node's children are equal, mirroring the data-class equality the callers used, which
@@ -72,12 +84,17 @@ class HibariDiffCallback(
      * that pair, so memoizing it makes the whole comparison O(items).
      */
     private fun childrenTheSame(oldNode: Node, newNode: Node): Boolean {
-        childrenVerdicts[newNode]?.let { (memoOldNode, verdict) ->
+        val oldChildren = oldNode.children
+        val newChildren = newNode.children
+
+        // Leaves are most of a tree and their verdict is free to recompute, so they are settled
+        // before the memo: it would otherwise take a lookup plus a Pair for every one of them.
+        if (oldChildren.isEmpty() && newChildren.isEmpty()) return true
+
+        childrenVerdicts?.get(newNode)?.let { (memoOldNode, verdict) ->
             if (memoOldNode === oldNode) return verdict
         }
 
-        val oldChildren = oldNode.children
-        val newChildren = newNode.children
         val same = oldChildren.size == newChildren.size &&
                 oldChildren.indices.all { index ->
                     val oldChild = oldChildren[index]
@@ -88,9 +105,12 @@ class HibariDiffCallback(
                             childrenTheSame(oldChild, newChild)
                 }
 
-        childrenVerdicts[newNode] = oldNode to same
+        verdicts()[newNode] = oldNode to same
         return same
     }
+
+    /** Whether the subtree memo was ever asked for a verdict, i.e. whether a container was compared. */
+    internal fun verdictsMemoized(): Boolean = childrenVerdicts != null
 
     override fun getOldListSize(): Int = oldList.size
     override fun getNewListSize(): Int = newList.size

@@ -139,6 +139,29 @@ class HibariDiffCallbackTest {
     }
 
     @Test
+    fun `an unchanged pair of leaves never builds the caches`() {
+        val callback = HibariDiffCallback(
+            listOf(node(1f, key = "0"), node(2f, key = "1")),
+            listOf(node(1f, key = "0"), node(2f, key = "1"))
+        )
+
+        assertTrue(callback.areContentsTheSame(0, 0))
+        assertTrue(callback.areContentsTheSame(1, 1))
+        assertFalse(callback.verdictsMemoized())
+    }
+
+    @Test
+    fun `a container is what starts the memo`() {
+        val callback = HibariDiffCallback(
+            listOf(node(1f, children = listOf(node(2f)))),
+            listOf(node(1f, children = listOf(node(2f))))
+        )
+
+        assertTrue(callback.areContentsTheSame(0, 0))
+        assertTrue(callback.verdictsMemoized())
+    }
+
+    @Test
     fun `asking twice gives the same answers`() {
         val callback = HibariDiffCallback(listOf(node(1f)), listOf(node(0.5f)))
 
