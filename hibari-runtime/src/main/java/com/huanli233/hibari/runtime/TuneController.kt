@@ -20,12 +20,15 @@ object TuneController {
             }
             val composedAt = TuneStats.now()
 
-            val renderer = Renderer(factories.toMutableList().apply {
-                (session.hostView.context as? Activity)?.let {
-                    add(HibariFactory(it.layoutInflater))
-                } ?: add(HibariFactory(LayoutInflater.from(session.hostView.context)))
-            }, session.hostView)
-            val patcher = Patcher(renderer)
+            val patcher = session.patcher ?: Patcher(
+                Renderer(
+                    factories + HibariFactory(
+                        (session.hostView.context as? Activity)?.layoutInflater
+                            ?: LayoutInflater.from(session.hostView.context)
+                    ),
+                    session.hostView
+                )
+            ).also { session.patcher = it }
 
             val oldNodeTree = session.lastTree
             patcher.patch(session.hostView, oldNodeTree, newNodeTree)

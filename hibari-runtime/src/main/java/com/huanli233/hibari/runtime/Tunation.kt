@@ -21,8 +21,17 @@ class Tunation(
     var lastTree: List<Node> = emptyList()
     var tuneData: TuneData? = null
 
+    /**
+     * The patcher only depends on the host view and the factories, both fixed for a session's life,
+     * so it is built once instead of per tune — a tune otherwise costs a renderer, a patcher, a
+     * copied factory list and an inflater wrapper.
+     */
+    internal var patcher: Patcher? = null
+
     fun dispose() {
         SnapshotManager.clearDependencies(this)
         tuner?.dispose()
+        tuner = null
+        patcher = null
     }
 }

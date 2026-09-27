@@ -65,6 +65,14 @@ class HibariView @JvmOverloads constructor(
         configuration = Configuration(newConfig)
     }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        // onDetachedFromWindow dropped this session from the state-read map and cancelled its
+        // tuner's scope, so nothing can wake it here: a re-attach has to retune to resubscribe and
+        // to get an alive scope back for its effects.
+        GlobalRetuner.retuner.scheduleRetune(tunation)
+    }
+
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         tunation.dispose()
