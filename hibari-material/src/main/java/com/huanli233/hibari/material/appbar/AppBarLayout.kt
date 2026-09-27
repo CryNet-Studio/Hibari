@@ -12,13 +12,12 @@ import androidx.annotation.IdRes
 import androidx.annotation.MenuRes
 import androidx.annotation.Px
 import androidx.annotation.StyleRes
-import androidx.core.view.ViewCompat
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.google.android.material.appbar.MaterialToolbar
 import com.huanli233.hibari.foundation.Node
 import com.huanli233.hibari.runtime.Tunable
-import com.huanli233.hibari.runtime.invokeSetKeyedTag
+import com.huanli233.hibari.material.R
 import com.huanli233.hibari.ui.Modifier
 import com.huanli233.hibari.ui.thenLayoutAttribute
 import com.huanli233.hibari.ui.thenViewAttributeIfNotNull
@@ -28,7 +27,7 @@ import kotlin.math.min
 
 // Slot for the single OnOffsetChangedListener this component installed; Material has no
 // clear-all for offset listeners, so the previous one is removed by reference before re-adding.
-private val appBarOffsetListenerKey = ViewCompat.generateViewId()
+private val appBarOffsetListenerKey = R.id.hibari_app_bar_offset_listener
 
 @Tunable
 fun AppBarLayout(
@@ -72,7 +71,7 @@ fun AppBarLayout(
                 (getTag(appBarOffsetListenerKey) as? AppBarLayout.OnOffsetChangedListener)
                     ?.let { removeOnOffsetChangedListener(it) }
                 addOnOffsetChangedListener(offsetListener)
-                invokeSetKeyedTag(this, appBarOffsetListenerKey, offsetListener)
+                setTag(appBarOffsetListenerKey, offsetListener)
             }
             .thenViewAttributeIfNotNull<AppBarLayout, (Float, Int) -> Unit>(uniqueKey, onLiftStateChanged) { listener ->
                 clearLiftOnScrollListener()

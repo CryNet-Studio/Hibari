@@ -16,9 +16,9 @@ fun hibariRuntimeError(message: String, cause: Throwable? = null): Nothing = thr
 
 class HibariRuntimeError(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
 
-val hibariViewId = ViewCompat.generateViewId()
+val hibariViewId = R.id.hibari_view_tag
 
-val subcomposeLayoutId = ViewCompat.generateViewId()
+val subcomposeLayoutId = R.id.sub_compose_layout
 
 /**
  * The hidden `View.setKeyedTag` is looked up once instead of once per tagged write: every view

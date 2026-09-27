@@ -2,11 +2,10 @@ package com.huanli233.hibari.material
 
 import android.text.TextWatcher
 import androidx.appcompat.widget.AppCompatEditText
-import androidx.core.view.ViewCompat
 import androidx.core.widget.doOnTextChanged
 import com.huanli233.hibari.foundation.Node
 import com.huanli233.hibari.runtime.Tunable
-import com.huanli233.hibari.runtime.invokeSetKeyedTag
+import com.huanli233.hibari.material.R
 import com.huanli233.hibari.ui.Modifier
 import com.huanli233.hibari.ui.thenViewAttribute
 import com.huanli233.hibari.ui.thenViewAttributeIfNotNull
@@ -15,7 +14,7 @@ import com.huanli233.hibari.ui.viewClass
 
 // Keyed-tag slot holding the single TextWatcher this component installed, so re-applying the
 // listener attribute replaces it instead of stacking another one (see EditText() below).
-private val editTextWatcherKey = ViewCompat.generateViewId()
+private val editTextWatcherKey = R.id.hibari_edit_text_watcher
 
 @Tunable
 fun EditText(
@@ -48,7 +47,7 @@ fun EditText(
                         listener(newText)
                     }
                 }
-                invokeSetKeyedTag(this, editTextWatcherKey, watcher)
+                setTag(editTextWatcherKey, watcher)
             }
             .thenViewAttributeIfNotNull<AppCompatEditText, CharSequence>(uniqueKey, hint) { this.hint = it }
             .thenViewAttributeIfNotNull<AppCompatEditText, Int>(uniqueKey, inputType) { this.inputType = it }

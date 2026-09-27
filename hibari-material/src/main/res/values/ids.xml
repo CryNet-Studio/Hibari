@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="hibari_edit_text_watcher" type="id" />
+    <item name="hibari_text_field_watcher" type="id" />
+    <item name="hibari_app_bar_offset_listener" type="id" />
+</resources>

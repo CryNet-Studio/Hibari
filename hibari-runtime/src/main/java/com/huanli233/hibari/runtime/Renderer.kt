@@ -47,7 +47,7 @@ class Renderer(
         private val viewConstructors = mutableMapOf<String, ViewConstructor>()
         internal var attrSets = mutableMapOf<Int, AttributeSet>()
 
-        val hibariNodeKey = ViewCompat.generateViewId()
+        val hibariNodeKey = R.id.hibari_node_key
 
         val viewIds = mutableMapOf<String, Int>()
 
@@ -89,7 +89,7 @@ class Renderer(
         if (node.measurePolicy != null) {
             return LayoutNodeHost(parent.context).apply {
                 this.node = node
-                invokeSetKeyedTag(this, hibariNodeKey, node.key)
+                setTag(hibariNodeKey, node.key)
             }
         }
 
@@ -125,7 +125,7 @@ class Renderer(
             view?.id = viewId
         }
         view?.let { view ->
-            invokeSetKeyedTag(view, hibariViewId, id)
+            view.setTag(hibariViewId, id)
 
             view.layoutParams = layoutParamsConstructor(parent.javaClass)
                 ?.newInstance(LayoutParamsWrapContent, LayoutParamsWrapContent) as? ViewGroup.LayoutParams
@@ -138,7 +138,7 @@ class Renderer(
                     LayoutParamsWrapContent
                 )
 
-            invokeSetKeyedTag(view, hibariNodeKey, node.key)
+            view.setTag(hibariNodeKey, node.key)
 
             // Walked in place rather than through filtered intermediate lists: this ran per view
             // created, and both passes are cheap enough to fold into one traversal each.

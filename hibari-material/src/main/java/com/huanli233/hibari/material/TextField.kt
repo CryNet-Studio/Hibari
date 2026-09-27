@@ -1,20 +1,19 @@
 package com.huanli233.hibari.material
 
 import android.text.TextWatcher
-import androidx.core.view.ViewCompat
 import androidx.core.widget.doOnTextChanged
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.huanli233.hibari.foundation.Node
 import com.huanli233.hibari.runtime.Tunable
-import com.huanli233.hibari.runtime.invokeSetKeyedTag
+import com.huanli233.hibari.material.R
 import com.huanli233.hibari.ui.Modifier
 import com.huanli233.hibari.ui.thenViewAttribute
 import com.huanli233.hibari.ui.thenViewAttributeIfNotNull
 import com.huanli233.hibari.ui.uniqueKey
 import com.huanli233.hibari.ui.viewClass
 
-private val textFieldWatcherKey = ViewCompat.generateViewId()
+private val textFieldWatcherKey = R.id.hibari_text_field_watcher
 
 @Tunable
 fun TextField(
@@ -99,7 +98,7 @@ private fun TextInputEditText(
                         listener(newText)
                     }
                 }
-                invokeSetKeyedTag(this, textFieldWatcherKey, watcher)
+                setTag(textFieldWatcherKey, watcher)
             }
             .thenViewAttributeIfNotNull<TextInputEditText, CharSequence>(uniqueKey, hint) { this.hint = it }
             .thenViewAttributeIfNotNull<TextInputEditText, Int>(uniqueKey, inputType) { this.inputType = it }
