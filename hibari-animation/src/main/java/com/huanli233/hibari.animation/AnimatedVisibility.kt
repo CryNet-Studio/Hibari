@@ -225,6 +225,12 @@ internal constructor(override var transition: Transition<EnterExitState>) : Anim
             }
         }
 
+        // There is no lookahead pass, so targetSize stays zero, and a zero target is not a measured
+        // size but an unknown one. Every default AnimatedVisibility enters with an expand and exits
+        // with a shrink, so clamping the layout to an unknown size has to be skipped rather than
+        // driven: writing zero here leaves the content collapsed to 0x0 once the transition settles.
+        val sizeIsMeasured = targetSize.value != IntSize.Zero
+
         return this
             .thenViewAttribute<View, Float>(uniqueKey, animatedAlpha.value) { alphaValue ->
                 if (E.fade != null || X.fade != null) this.alpha = alphaValue
@@ -244,7 +250,7 @@ internal constructor(override var transition: Transition<EnterExitState>) : Anim
                 }
             }
             .thenLayoutAttribute<ViewGroup.LayoutParams, IntSize>(uniqueKey, animatedSize.value) { density, sizeValue ->
-                if (E.changeSize != null || X.changeSize != null) {
+                if (sizeIsMeasured && (E.changeSize != null || X.changeSize != null)) {
                     width = sizeValue.width
                     height = sizeValue.height
                 }

@@ -82,6 +82,13 @@ class TestActivity: AppCompatActivity() {
                         ) {
                             Text("test")
                         }
+                        // The same toggle with its default enter and exit. Those defaults are
+                        // fadeIn+expandVertically and shrinkVertically+fadeOut, which is where an
+                        // unmeasured target size used to write 0x0 layout parameters and take the
+                        // content with it.
+                        AnimatedVisibility(showContent) {
+                            Text("default enter and exit")
+                        }
                     }
                     // ConstraintLayout smoke test. The nested layout used to leave its ConstraintSet
                     // behind for the sibling emitted after it, so "cl bottom" ended up constrained
