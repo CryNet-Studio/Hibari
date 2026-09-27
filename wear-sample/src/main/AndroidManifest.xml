@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      required="false" so the APK still installs on a phone emulator during development; a
+      Wear-only build would flip this to true.
+    -->
+    <uses-feature
+        android:name="android.hardware.type.watch"
+        android:required="false" />
+
+    <application
+        android:allowBackup="false"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.WearSample">
+
+        <uses-library
+            android:name="com.google.android.wearable"
+            android:required="false" />
+
+        <meta-data
+            android:name="android.support.wearable.mode"
+            android:value="standalone" />
+
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          Caller-side smoke surface for the components MainActivity does not reach. Not exported:
+          start it with
+          `adb shell am start -n com.huanli233.hibari.wearsample/.ApiSmokeActivity`.
+        -->
+        <activity
+            android:name=".ApiSmokeActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:exported="false" />
+    </application>
+
+</manifest>
