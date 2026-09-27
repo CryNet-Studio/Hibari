@@ -86,10 +86,35 @@ class LazyListScopeImpl : LazyListScope {
                 LazyListItem(
                     key = key(item),
                     contentType = contentType(item),
-                    content = { content(item) }
+                    content = { content(item) },
+                    // The item itself is what the lambda renders, so it is what has to be compared.
+                    data = item
                 )
             )
         }
+    }
+}
+
+/**
+ * `submitList` diffs on a background thread and swaps the list in on the main one, and the list it is
+ * handed is its own — a host that recomposes every animation frame would otherwise pay a full item
+ * diff per frame. An item compares by key, content type and data, which is exactly the work a rebind
+ * would produce, so a list equal to the one already submitted is skipped.
+ *
+ * The copy that gets submitted is also the one kept for the next comparison, so nothing the caller
+ * still mutates can be read while the differ walks it off-thread.
+ */
+internal class SubmittedItems {
+
+    private var last: List<LazyListItem> = emptyList()
+
+    /** Returns the list to submit, or null when it is the same list as the one already in place. */
+    fun take(next: List<LazyListItem>): List<LazyListItem>? {
+        if (next.size == last.size && next.indices.all { last[it] == next[it] }) return null
+
+        val snapshot = next.toList()
+        last = snapshot
+        return snapshot
     }
 }
 
@@ -101,8 +126,9 @@ fun LazyList(
 ) {
     val parentTunation = currentTuner.tunation
     val adapter = remember { HibariAdapter(parentTunation) }
+    val submitted = remember { SubmittedItems() }
     val scope = LazyListScopeImpl().apply(content)
-    adapter.submitList(scope.items)
+    submitted.take(scope.items)?.let { adapter.submitList(it) }
 
     Node(
         modifier = modifier

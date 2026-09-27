@@ -7,10 +7,17 @@ import androidx.recyclerview.widget.ListAdapter
 import com.huanli233.hibari.runtime.Tunable
 import com.huanli233.hibari.runtime.Tunation
 
+/**
+ * [data] is what the row renders, kept separate from [content] because the content lambda is rebuilt
+ * by the caller on every tune and can never compare equal to its previous self. Without [data] an item
+ * keyed by something stable (an id) compares unchanged forever, and the row keeps showing whatever
+ * the lambda captured at its first bind.
+ */
 data class LazyListItem(
     val key: Any?,
     val contentType: Any?,
-    val content: @Tunable () -> Unit
+    val content: @Tunable () -> Unit,
+    val data: Any? = null
 ) {
 
     override fun hashCode(): Int {
@@ -18,6 +25,7 @@ data class LazyListItem(
         // items that compare equal land in different hash buckets.
         var result = key?.hashCode() ?: 0
         result = 31 * result + (contentType?.hashCode() ?: 0)
+        result = 31 * result + (data?.hashCode() ?: 0)
         return result
     }
 
@@ -29,6 +37,7 @@ data class LazyListItem(
 
         if (key != other.key) return false
         if (contentType != other.contentType) return false
+        if (data != other.data) return false
 
         return true
     }

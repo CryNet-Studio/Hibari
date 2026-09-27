@@ -4,11 +4,8 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.recyclerview.widget.RecyclerView
 import com.huanli233.hibari.runtime.GlobalRetuner
-import com.huanli233.hibari.runtime.SnapshotManager
 import com.huanli233.hibari.runtime.Tunable
 import com.huanli233.hibari.runtime.Tunation
-import kotlinx.coroutines.cancel
-
 class HibariViewHolder(
     private val container: ViewGroup,
     private val parentTunation: Tunation
@@ -31,10 +28,9 @@ class HibariViewHolder(
     }
 
     fun recycle() {
-        itemTunation?.let {
-            SnapshotManager.clearDependencies(it)
-            it.tuner?.coroutineScope?.cancel()
-        }
+        // dispose() drops the state dependencies, forgets the item's own remembered slots and cancels
+        // its scope. Clearing the dependencies by hand left every effect inside the row running.
+        itemTunation?.dispose()
         itemTunation = null
         container.removeAllViews()
     }
