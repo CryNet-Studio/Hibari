@@ -120,6 +120,7 @@ interface AnimatedVisibilityScope {
 
 internal class AnimatedVisibilityScopeImpl
 internal constructor(override var transition: Transition<EnterExitState>) : AnimatedVisibilityScope {
+    /** Upstream writes this from its lookahead measure pass; Hibari has no such pass and no writer. */
     internal val targetSize = mutableStateOf(IntSize.Zero)
     @Tunable
     override fun Modifier.animateEnterExit(
@@ -242,8 +243,9 @@ internal constructor(override var transition: Transition<EnterExitState>) : Anim
 
 /**
  * RowScope and ColumnScope AnimatedVisibility extensions and AnimatedVisibility without a receiver
- * converge here. AnimatedVisibilityImpl sets up 2 things: 1) It adds a modifier to report 0 size in
- * lookahead when animating out. 2) It sets up a criteria for when content should be disposed.
+ * converge here. Upstream also installs a modifier that reports the lookahead size while animating
+ * out; Hibari has no lookahead pass, so that reporter has no counterpart and
+ * [AnimatedVisibilityScopeImpl.targetSize] is never written.
  */
 @Tunable
 internal fun <T> AnimatedVisibilityImpl(
@@ -263,11 +265,6 @@ internal fun <T> AnimatedVisibilityImpl(
         shouldDisposeBlock = { current, target -> current == target && target == EnterExitState.PostExit },
         content = content,
     )
-}
-
-/** Observes lookahead size. */
-internal fun interface OnLookaheadMeasured {
-    fun invoke(size: IntSize)
 }
 
 @Tunable
