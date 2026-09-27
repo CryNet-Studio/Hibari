@@ -145,6 +145,20 @@ class TestActivity: AppCompatActivity() {
                                 set("android:textSize", "22sp")
                             }
                     )
+                    // Loop-slot smoke test: three rows from one call site, each remembering its own
+                    // counter. Before the walker counted sibling entries they shared one slot, so a
+                    // tap on any row moved all three numbers together.
+                    Column(modifier = Modifier.matchParentWidth().gravity(Gravity.TOP)) {
+                        for (row in 0 until 3) {
+                            var taps by remember { mutableStateOf(0) }
+                            Text(
+                                "row $row taps $taps",
+                                Modifier.onClick {
+                                    taps++
+                                }
+                            )
+                        }
+                    }
                 }
             }
         )
