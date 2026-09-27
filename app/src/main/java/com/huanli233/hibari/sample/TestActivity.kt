@@ -25,6 +25,7 @@ import com.huanli233.hibari.material.ConstraintLayout
 import com.huanli233.hibari.material.Text
 import com.huanli233.hibari.runtime.HibariView
 import com.huanli233.hibari.runtime.attribute.attrs
+import com.huanli233.hibari.runtime.bindState
 import com.huanli233.hibari.runtime.currentContext
 import com.huanli233.hibari.runtime.effects.LaunchedEffect
 import com.huanli233.hibari.runtime.getValue
@@ -33,6 +34,7 @@ import com.huanli233.hibari.runtime.mutableStateOf
 import com.huanli233.hibari.runtime.remember
 import com.huanli233.hibari.runtime.setValue
 import com.huanli233.hibari.ui.Modifier
+import com.huanli233.hibari.ui.uniqueKey
 import com.huanli233.hibari.ui.viewClass
 
 class TestActivity: AppCompatActivity() {
@@ -114,6 +116,23 @@ class TestActivity: AppCompatActivity() {
                             }
                         )
                     }
+                    // State-binding smoke test. The animated value reaches the view through a
+                    // subscription instead of a composition read, so its per-frame writes do not
+                    // re-tune this host view the way the delegated `alpha` above does.
+                    val boundAlpha = transition.animateFloat(label = "bound alpha") {
+                        if (it) 0.25f else 1f
+                    }
+                    Node(
+                        modifier = Modifier
+                            .matchParentWidth()
+                            .gravity(Gravity.BOTTOM)
+                            .viewClass(android.widget.TextView::class.java)
+                            .attrs {
+                                set("android:text", "bound alpha")
+                                set("android:textColor", 0xFF3F51B5.toInt())
+                            }
+                            .bindState(uniqueKey, boundAlpha) { this.alpha = it }
+                    )
                     // Runtime-attrs smoke test: textColor/textSize arrive only through the
                     // synthesized AttributeSet, not through any typed Modifier.
                     Node(
