@@ -32,3 +32,12 @@ internal object HibariLog {
         Log.e(tag, message(), cause)
     }
 }
+
+/**
+ * Switches the framework's verbose composition and patch logging on. The gates are inline and take a
+ * `() -> String`, so with this off the messages - including the ones that stringify a whole modifier
+ * chain - are never built.
+ */
+fun setVerboseHibariLogging(enabled: Boolean) {
+    HibariLog.enabled = enabled
+}
