@@ -1,6 +1,7 @@
 package com.huanli233.hibari.runtime
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Test
 
 /**
@@ -23,9 +24,10 @@ class WalkerTest {
         walker.end()
         assertEquals("7", walker.path())
 
-        walker.start(3)
+        // Two siblings this level has not counted before, so neither picks up an occurrence suffix.
+        walker.start(8)
         walker.start(4)
-        assertEquals("7-3-4", walker.path())
+        assertEquals("7-8-4", walker.path())
 
         walker.clear()
         assertEquals("", walker.path())
@@ -52,5 +54,56 @@ class WalkerTest {
         walker.end()
 
         assertEquals(outer, walker.path())
+    }
+
+    @Test
+    fun `two siblings from one call site get different slots`() {
+        val walker = Walker()
+        walker.start(5)
+
+        walker.start(9)
+        val first = walker.path()
+        walker.end()
+
+        walker.start(9)
+        val second = walker.path()
+        walker.end()
+
+        // Same call site, second sibling of the same parent: a loop body that shares one path hands
+        // every iteration the same remember slot and the same node key.
+        assertEquals("5-9", first)
+        assertNotEquals(first, second)
+    }
+
+    @Test
+    fun `a fresh composition replays the same sibling slots`() {
+        val walker = Walker()
+        walker.start(5)
+        walker.start(9)
+        val first = walker.path()
+        walker.end()
+        walker.start(9)
+        val second = walker.path()
+        walker.end()
+        walker.end()
+
+        walker.clear()
+        walker.start(5)
+        walker.start(9)
+        assertEquals(first, walker.path())
+        walker.end()
+        walker.start(9)
+        assertEquals(second, walker.path())
+    }
+
+    @Test
+    fun `a level that only ever enters each key once keeps the old shape`() {
+        val walker = Walker()
+        walker.start(11)
+        walker.start(12)
+        assertEquals("11-12", walker.path())
+        walker.end()
+        walker.start(13)
+        assertEquals("11-13", walker.path())
     }
 }
