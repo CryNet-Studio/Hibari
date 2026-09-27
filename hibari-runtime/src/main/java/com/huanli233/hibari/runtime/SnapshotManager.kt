@@ -20,8 +20,9 @@ object SnapshotManager {
             if (snapshot !in tuneSnapshots) {
                 val tunationsToInvalidate = mutableSetOf<Tunation>()
                 stateObjects.forEach { stateObject ->
-                    stateToTunationsMap[stateObject]?.let {
-                        tunationsToInvalidate.addAll(it)
+                    stateToTunationsMap[stateObject]?.let { observers ->
+                        tunationsToInvalidate.addAll(observers)
+                        observers.forEach { it.markChanged(stateObject) }
                     }
                 }
 

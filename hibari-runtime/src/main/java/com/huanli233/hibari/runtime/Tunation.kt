@@ -39,8 +39,22 @@ class Tunation(
     var isValid = true
         internal set
 
+    /**
+     * Which writes woke this session, kept only so a round can be censused for how much of the tree
+     * did not need to run. Drained by the next tune, so it cannot grow while a session sits idle.
+     */
+    private val changedStates = mutableSetOf<Any>()
+
+    internal fun markChanged(stateObject: Any) {
+        changedStates.add(stateObject)
+    }
+
+    internal fun takeChangedStates(): Set<Any> =
+        if (changedStates.isEmpty()) emptySet() else HashSet<Any>(changedStates).also { changedStates.clear() }
+
     fun dispose() {
         isValid = false
+        changedStates.clear()
         SnapshotManager.clearDependencies(this)
         tuner?.dispose()
         tuner = null

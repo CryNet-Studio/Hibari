@@ -92,6 +92,24 @@ class TuneStatsTest {
     }
 
     @Test
+    fun `the group census is summed over the window and dropped with it`() {
+        TuneStats.enabled = true
+        TuneStats.recordGroups(4, 1)
+        // A round that entered no group has nothing to say, and must not dilute the ratio.
+        TuneStats.recordGroups(0, 0)
+        TuneStats.recordTune(1_000_000L, 1_000_000L, -1L, -1L)
+
+        assertEquals(4L, TuneStats.groupsSeen)
+        assertEquals(1L, TuneStats.groupsClean)
+        assertTrue(TuneStats.report().contains("skippable=1/4"))
+
+        TuneStats.startWindow()
+
+        assertEquals(0L, TuneStats.groupsSeen)
+        assertEquals(0L, TuneStats.groupsClean)
+    }
+
+    @Test
     fun `starting a window drops what the last one counted`() {
         TuneStats.enabled = true
         TuneStats.recordTune(1L, 1L, 10L, 30L)

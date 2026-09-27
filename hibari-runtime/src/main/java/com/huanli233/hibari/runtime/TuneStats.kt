@@ -110,6 +110,18 @@ object TuneStats {
         if (enabled) myersPatches++
     }
 
+    /** Root groups censused over the window, and how many of them read nothing that changed. */
+    var groupsSeen = 0L
+        private set
+    var groupsClean = 0L
+        private set
+
+    internal fun recordGroups(seen: Int, clean: Int) {
+        if (!enabled || seen <= 0) return
+        groupsSeen += seen
+        groupsClean += clean
+    }
+
     /** Empties the current window. Read the fields first if lifetime numbers are what is wanted. */
     fun startWindow() {
         tunes = 0
@@ -123,6 +135,8 @@ object TuneStats {
         positionalPatches = 0
         myersPatches = 0
         slotsChanged = 0
+        groupsSeen = 0
+        groupsClean = 0
         nodeBuckets.clear()
     }
 
@@ -137,7 +151,8 @@ object TuneStats {
                 "views/tune=" + (viewsCreated / tunes) + " " +
                 "attrWrites=" + attributeWrites + " " +
                 "positional=" + positionalPatches + " myers=" + myersPatches +
-                " slotsChanged=" + slotsChanged + " | fattest=" + fattestGroups()
+                " slotsChanged=" + slotsChanged + " | skippable=" + groupsClean + "/" + groupsSeen +
+                " | fattest=" + fattestGroups()
     }
 
     /** The three groups emitting the most nodes in the window - where a skip pass would pay. */

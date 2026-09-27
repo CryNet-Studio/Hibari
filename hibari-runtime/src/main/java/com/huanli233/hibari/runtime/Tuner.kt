@@ -155,6 +155,11 @@ open class Tuner(
     private val touchedSlots = HashSet<String>()
     private val forgottenScratch = ArrayList<String>()
 
+    /** The writes that woke the round about to run; empty when the round was forced, not woken. */
+    internal var roundChangedStates: Set<Any> = emptySet()
+
+    private var census: GroupCensus? = null
+
     fun getTuneData(): TuneData {
         return TuneData(localValueStacks, memory)
     }
@@ -174,6 +179,7 @@ open class Tuner(
 
     fun startGroup(key: Int) {
         walker.start(key)
+        census?.noteGroup(walker.path())
     }
 
     fun endGroup(key: Int) {
@@ -183,6 +189,13 @@ open class Tuner(
     fun startComposition() {
         HibariLog.i(TAG) { "======== START COMPOSITION ========" }
         walker.clear()
+        // A round with no known writes (a bind, an attach, a first tune) cannot say anything about
+        // what was skippable, so it is left out of the census rather than counted as all clean.
+        census = if (TuneStats.enabled && roundChangedStates.isNotEmpty()) {
+            GroupCensus(roundChangedStates)
+        } else {
+            null
+        }
         nodeStack.addFirst(mutableListOf())
     }
 
@@ -195,6 +208,11 @@ open class Tuner(
             hibariRuntimeError("Composition stack imbalance. Mismatched start/end calls.")
         }
         forgetUntouchedSlots(memory, ownedSlots, touchedSlots, forgottenScratch)
+        census?.let {
+            TuneStats.recordGroups(it.groupsSeen(), it.cleanGroupCount())
+            census = null
+        }
+        roundChangedStates = emptySet()
         return nodeStack.removeFirst()
     }
 
@@ -252,6 +270,7 @@ open class Tuner(
         val snapshot = Snapshot.takeMutableSnapshot(
             readObserver = {
                 onReadState(it)
+                census?.noteRead(walker.path(), it)
             }
         )
         snapshot.enter {

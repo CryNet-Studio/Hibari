@@ -12,6 +12,7 @@ object TuneController {
         val tuner = session.tuner ?: Tuner(session)
         try {
             session.tuner = tuner
+            tuner.roundChangedStates = session.takeChangedStates()
 
             val newNodeTree = tuner.run {
                 startComposition()
