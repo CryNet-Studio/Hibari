@@ -17,7 +17,6 @@
 package com.huanli233.hibari.animation
 
 import com.huanli233.hibari.animation.createDeferredAnimation
-import com.huanli233.hibari.foundation.attributes.clipToPadding
 import com.huanli233.hibari.runtime.Tunable
 import com.huanli233.hibari.runtime.getValue
 import com.huanli233.hibari.runtime.mutableStateOf
@@ -812,6 +811,11 @@ internal operator fun <T : TransitionEffect> EnterTransition.get(key: Transition
 internal operator fun <T : TransitionEffect> ExitTransition.get(key: TransitionEffectKey<T>): T? =
     data.effectsMap[key] as? T
 
+/**
+ * Neither tracker is called: AnimatedEnterExitImpl feeds the raw enter and exit to the transition, so
+ * an interrupted enter or exit does not recover the transition that was in flight. Same for the
+ * graphics-layer block and the [TransitionEffect] map below, which nothing reads.
+ */
 @Tunable
 internal fun Transition<EnterExitState>.trackActiveEnter(enter: EnterTransition): EnterTransition {
     // Active enter & active exit reference the enter and exit transition that is currently being
@@ -961,7 +965,3 @@ val TransformOriginVectorConverter =
     )
 
 private val DefaultAlphaAndScaleSpring = spring<Float>(stiffness = Spring.StiffnessMediumLow)
-
-private val DefaultOffsetAnimationSpec = spring(
-    stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntOffset.VisibilityThreshold
-)

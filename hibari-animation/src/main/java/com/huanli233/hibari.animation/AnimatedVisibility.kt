@@ -120,7 +120,18 @@ interface AnimatedVisibilityScope {
 
 internal class AnimatedVisibilityScopeImpl
 internal constructor(override var transition: Transition<EnterExitState>) : AnimatedVisibilityScope {
-    /** Upstream writes this from its lookahead measure pass; Hibari has no such pass and no writer. */
+    /**
+     * Upstream writes this from its lookahead measure pass; Hibari has no such pass and no writer, so
+     * every size and slide term below resolves against `IntSize.Zero`.
+     *
+     * Reading the live view is not a fix: this same modifier writes the animated size into the box's
+     * layout parameters, so a measure taken mid-enter reads back the clamped value and feeds zero to
+     * zero. The last visible frame before an exit is the only point where the real content size is in
+     * the tree, and an enter from hidden has no such frame at all. What is left is a host that
+     * measures its children once against loose constraints before applying the animated size - and
+     * consumes that size itself, since a `LayoutNodeHost` ignores the layout parameters of the views
+     * it places, so the animated size cannot keep riding a layout attribute through it.
+     */
     internal val targetSize = mutableStateOf(IntSize.Zero)
     @Tunable
     override fun Modifier.animateEnterExit(
