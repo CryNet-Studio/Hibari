@@ -165,6 +165,13 @@ class Patcher(val renderer: Renderer) {
 
             val newView = renderer.render(newNode, parentView)
             parentView.addView(newView, position)
+
+            // A rebuilt container comes back empty. Nothing else walks its children for a node that
+            // was already paired with a live view, so a container that only changed its view class
+            // or its runtime attrs used to land here with an empty subtree.
+            if (newView is ViewGroup && newNode.children.isNotEmpty()) {
+                patch(newView, emptyList(), newNode.children)
+            }
         }
     }
 }
