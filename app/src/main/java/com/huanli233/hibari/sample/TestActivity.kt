@@ -89,6 +89,18 @@ class TestActivity: AppCompatActivity() {
                         AnimatedVisibility(showContent) {
                             Text("default enter and exit")
                         }
+                        // Measure-host probe. A policy has never been supplied to Node(measurePolicy
+                        // = …) anywhere in this repository, so the path the size animation would have
+                        // to be built on has never run. Pass condition: three rows stacked with no
+                        // overlap and wrapping them tightly.
+                        Node(
+                            modifier = Modifier.matchParentWidth(),
+                            measurePolicy = StackingProbePolicy
+                        ) {
+                            Text("probe row 1")
+                            Text("probe row 2")
+                            Text("probe row 3")
+                        }
                     }
                     // ConstraintLayout smoke test. The nested layout used to leave its ConstraintSet
                     // behind for the sibling emitted after it, so "cl bottom" ended up constrained
