@@ -15,7 +15,10 @@ class Tunation(
         tuner: Tuner? = null,
         parent: Tunation
     ) : this(hostView, content, tuner) {
-        this.tuneData = parent.tuneData
+        // The locals are what the parent has in scope for this content, so they are shared. Its
+        // remembered values are not: a sub-session walks paths from its own root, and one map for
+        // both lets a sub-session's first write land on a live slot of the parent and forget it.
+        parent.tuneData?.let { tuneData = TuneData(it.localValueStack, emptyMap()) }
     }
 
     var lastTree: List<Node> = emptyList()
