@@ -70,6 +70,7 @@ class HibariView @JvmOverloads constructor(
         // onDetachedFromWindow dropped this session from the state-read map and cancelled its
         // tuner's scope, so nothing can wake it here: a re-attach has to retune to resubscribe and
         // to get an alive scope back for its effects.
+        tunation.isValid = true
         GlobalRetuner.retuner.scheduleRetune(tunation)
     }
 

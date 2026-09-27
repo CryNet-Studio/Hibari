@@ -8,6 +8,7 @@ import com.huanli233.hibari.runtime.snapshots.Snapshot
 import com.huanli233.hibari.ui.node.Node
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import org.lsposed.hiddenapibypass.HiddenApiBypass
 import java.lang.reflect.Method
@@ -15,6 +16,46 @@ import java.lang.reflect.Method
 fun hibariRuntimeError(message: String, cause: Throwable? = null): Nothing = throw HibariRuntimeError(message, cause)
 
 class HibariRuntimeError(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
+
+/**
+ * Releases the `remember` slots this tuner owned in an earlier composition but neither read nor wrote
+ * in the one that just finished — the slots of a conditional branch that stopped rendering. Until now
+ * those entries stayed in [memory] with their observers never forgotten, which is how a
+ * `LaunchedEffect` behind an `if` kept its coroutine after the `if` went false, and how a finished
+ * `Transition` kept pumping frames (and recomposing its host) forever.
+ *
+ * An entry is only released while the value this tuner wrote is still the one in [memory]: a
+ * sub-tunation shares the map, and a slot another tuner has since taken over is not ours to drop.
+ */
+internal fun forgetUntouchedSlots(
+    memory: MutableMap<String, Any?>,
+    owned: HashMap<String, Any?>,
+    touched: HashSet<String>,
+    scratch: ArrayList<String>,
+) {
+    if (owned.isEmpty()) {
+        touched.clear()
+        return
+    }
+
+    scratch.clear()
+    for ((path, value) in owned) {
+        if (path !in touched) scratch.add(path)
+    }
+
+    for (index in scratch.indices) {
+        val path = scratch[index]
+        val value = owned.remove(path)
+        if (memory[path] === value) {
+            memory.remove(path)
+            (value as? Pair<*, *>)?.let { pair ->
+                (pair.second as? RememberObserver)?.onForgotten()
+            }
+        }
+    }
+
+    touched.clear()
+}
 
 val hibariViewId = R.id.hibari_view_tag
 
@@ -95,7 +136,11 @@ open class Tuner(
 ) {
     private val TAG = "HibariTuner"
 
-    val coroutineScope = CoroutineScope(Dispatchers.Main)
+    /**
+     * A scope with no [Job] in its context cannot be cancelled at all — `cancel()` on it is a silent
+     * no-op — so every effect that outlives disposal kept running.
+     */
+    val coroutineScope = CoroutineScope(Dispatchers.Main + Job())
 
     private val nodeStack = ArrayDeque<MutableList<Node>>()
     val rootNodes: List<Node>
@@ -105,15 +150,24 @@ open class Tuner(
     var memory = tunation.tuneData?.memory?.toMutableMap() ?: hashMapOf()
     val localValueStacks = tunation.tuneData?.localValueStack ?: tunationLocalHashMapOf()
 
+    /** The slots written by this tuner, with the value it wrote, so a shared map stays prunable. */
+    private val ownedSlots = HashMap<String, Any?>()
+    private val touchedSlots = HashSet<String>()
+    private val forgottenScratch = ArrayList<String>()
+
     fun getTuneData(): TuneData {
         return TuneData(localValueStacks, memory)
     }
 
     fun dispose() {
-        memory.values.forEach { value ->
-            val rememberedValue = (value as? Pair<*, *>)?.second
-            (rememberedValue as? RememberObserver)?.onForgotten()
+        for ((path, value) in ownedSlots) {
+            if (memory[path] === value) memory.remove(path)
+            (value as? Pair<*, *>)?.let { pair ->
+                (pair.second as? RememberObserver)?.onForgotten()
+            }
         }
+        ownedSlots.clear()
+        touchedSlots.clear()
         memory.clear()
         coroutineScope.cancel()
     }
@@ -140,17 +194,20 @@ open class Tuner(
         if (nodeStack.size != 1) {
             hibariRuntimeError("Composition stack imbalance. Mismatched start/end calls.")
         }
+        forgetUntouchedSlots(memory, ownedSlots, touchedSlots, forgottenScratch)
         return nodeStack.removeFirst()
     }
 
     fun rememberedValue(): Any? {
         val path = walker.path()
-        val value = memory[path]
-        return value
+        touchedSlots.add(path)
+        return memory[path]
     }
 
     fun updateRememberedValue(value: Any?) {
         val path = walker.path()
+        touchedSlots.add(path)
+        ownedSlots[path] = value
         val oldValue = memory.put(path, value)
         if (oldValue != null && oldValue != value) {
             val oldRemembered = (oldValue as? Pair<*, *>)?.second

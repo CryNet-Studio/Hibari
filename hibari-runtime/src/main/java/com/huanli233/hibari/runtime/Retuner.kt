@@ -27,6 +27,7 @@ class Retuner(
     private var isRunning = false
 
     fun scheduleRetune(session: Tunation) {
+        if (!session.isValid) return
         if (queued.add(session)) {
             invalidations.add(session)
             startRetuneLoop()
@@ -68,7 +69,8 @@ class Retuner(
         while (invalidations.isNotEmpty()) {
             invalidations.poll()?.let {
                 queued.remove(it)
-                sessions.add(it)
+                // Disposed since it was queued: drop it rather than build a tuner for a dead view.
+                if (it.isValid) sessions.add(it)
             }
         }
         return sessions

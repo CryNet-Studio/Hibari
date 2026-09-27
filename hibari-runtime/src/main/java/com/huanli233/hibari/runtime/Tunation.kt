@@ -28,7 +28,16 @@ class Tunation(
      */
     internal var patcher: Patcher? = null
 
+    /**
+     * False from `dispose` until the host attaches again. A session that was already queued when it
+     * got disposed would otherwise be revived a frame later — a fresh tuner, fresh effects and its
+     * state reads re-registered against a view that is gone for good.
+     */
+    var isValid = true
+        internal set
+
     fun dispose() {
+        isValid = false
         SnapshotManager.clearDependencies(this)
         tuner?.dispose()
         tuner = null
