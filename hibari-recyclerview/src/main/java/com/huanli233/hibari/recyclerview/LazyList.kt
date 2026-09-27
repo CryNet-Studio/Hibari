@@ -36,7 +36,10 @@ interface LazyListScope {
     )
 }
 
-internal class LazyListScopeImpl : LazyListScope {
+/**
+ * Public so Wear's lazy lists can build the same item model without duplicating the scope DSL.
+ */
+class LazyListScopeImpl : LazyListScope {
 
     private val _items = mutableListOf<LazyListItem>()
     val items: List<LazyListItem> get() = _items

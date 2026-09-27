@@ -81,3 +81,13 @@ fun Modifier.translationY(value: Float): Modifier {
 fun Modifier.elevation(value: Float): Modifier {
     return this.thenViewAttribute<View, Float>(uniqueKey, value) { ViewCompat.setElevation(this, it) }
 }
+
+/**
+ * Floor for `wrap_content` measurement, the Views equivalent of Compose's `Modifier.heightIn`.
+ * A fixed `height` on the layout params wins, exactly as an explicit size overrides `heightIn`.
+ */
+fun Modifier.minHeight(minHeight: Dp): Modifier {
+    return this.thenViewAttribute<View, Dp>(uniqueKey, minHeight) {
+        this.minimumHeight = it.toPx(this)
+    }
+}
