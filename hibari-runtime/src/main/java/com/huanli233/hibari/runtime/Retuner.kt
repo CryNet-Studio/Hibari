@@ -2,11 +2,11 @@ package com.huanli233.hibari.runtime
 
 import com.huanli233.hibari.ui.HibariFactory
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.coroutines.CoroutineContext
 
@@ -17,12 +17,18 @@ class Retuner(
 
     private val scope = CoroutineScope(coroutineContext + SupervisorJob())
     private val invalidations = ConcurrentLinkedQueue<Tunation>()
-    @Volatile
-    private var currentTuneJob: Job? = null
+
+    /**
+     * The queue alone cannot answer "is this already coming?": `ConcurrentLinkedQueue.add` always
+     * succeeds, so the guard in [scheduleRetune] was decorative and a session invalidated five times
+     * in one frame queued five nodes. Membership lives here, and drains with the node.
+     */
+    private val queued = Collections.newSetFromMap(ConcurrentHashMap<Tunation, Boolean>())
     private var isRunning = false
 
     fun scheduleRetune(session: Tunation) {
-        if (invalidations.add(session)) {
+        if (queued.add(session)) {
+            invalidations.add(session)
             startRetuneLoop()
         }
     }
@@ -43,17 +49,11 @@ class Retuner(
     private suspend fun runRetuneLoop() {
         while (isRunning) {
             withFrameNanos {
-                if (invalidations.isNotEmpty()) {
-                    currentTuneJob?.cancel("A new Tune was scheduled")
-
-                    currentTuneJob = scope.launch {
-                        val sessionsToTune = drainInvalidations()
-
-                        sessionsToTune.forEach { session ->
-                            ensureActive()
-                            TuneController.tune(session, factories)
-                        }
-                    }
+                // Tuning right here, in the frame callback, rather than from a coroutine launched
+                // out of it: the launch only ever added a trip through the looper, and the cancel
+                // that went with it could drop every session a batch had not reached yet.
+                drainInvalidations().forEach { session ->
+                    TuneController.tune(session, factories)
                 }
 
                 if (invalidations.isEmpty()) {
@@ -66,7 +66,10 @@ class Retuner(
     private fun drainInvalidations(): Set<Tunation> {
         val sessions = mutableSetOf<Tunation>()
         while (invalidations.isNotEmpty()) {
-            invalidations.poll()?.let { sessions.add(it) }
+            invalidations.poll()?.let {
+                queued.remove(it)
+                sessions.add(it)
+            }
         }
         return sessions
     }
