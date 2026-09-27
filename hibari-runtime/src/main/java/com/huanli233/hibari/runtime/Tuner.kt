@@ -206,6 +206,7 @@ open class Tuner(
     @Tunable
     fun emitNode(node: Node, content: @Tunable () -> Unit = {}): Node {
         node.key = walker.path()
+        TuneStats.markNode()
         HibariLog.d(TAG) { "emitNode() at path '${node.key}'. Node: $node" }
         nodeStack.addFirst(mutableListOf())
         runTunable(content)

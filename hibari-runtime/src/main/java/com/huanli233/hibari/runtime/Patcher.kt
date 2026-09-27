@@ -56,12 +56,15 @@ class Patcher(val renderer: Renderer) {
                 changedCount++
                 applyChange(parentView, newChildren, position, diffCallback.getChangePayload(position, position))
             }
+            TuneStats.markPositionalPatch(changedCount)
             HibariLog.i(TAG) {
                 "<<< Patched ${describeParent(parentView)} positionally: " +
                         "$changedCount of ${oldChildren.size} changed."
             }
             return
         }
+
+        TuneStats.markMyersPatch()
 
         val updateCallback = object : ListUpdateCallback {
             override fun onInserted(position: Int, count: Int) {

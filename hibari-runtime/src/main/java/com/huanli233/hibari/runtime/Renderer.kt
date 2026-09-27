@@ -86,6 +86,7 @@ class Renderer(
     }
 
     fun render(node: Node, parent: ViewGroup): View {
+        TuneStats.markViewCreated()
         if (node.measurePolicy != null) {
             return LayoutNodeHost(parent.context).apply {
                 this.node = node
@@ -142,7 +143,14 @@ class Renderer(
 
             // Walked in place rather than through filtered intermediate lists: this ran per view
             // created, and both passes are cheap enough to fold into one traversal each.
-            modifierAttrs.forEach { (it as? Attribute<*>)?.applyTo(view) }
+            var attributesApplied = 0
+            modifierAttrs.forEach { attribute ->
+                (attribute as? Attribute<*>)?.let {
+                    it.applyTo(view)
+                    attributesApplied++
+                }
+            }
+            TuneStats.addAttributeWrites(attributesApplied)
             modifierAttrs.forEach { if (it is RefModifier) it.block(view) }
         }
 
@@ -150,6 +158,7 @@ class Renderer(
     }
 
     fun applyAttributes(view: View, attrs: List<Attribute<*>>) {
+        TuneStats.addAttributeWrites(attrs.size)
         attrs.forEach {
             it.applyTo(view)
         }
