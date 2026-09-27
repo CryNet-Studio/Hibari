@@ -45,7 +45,15 @@ class Renderer(
 ) {
     companion object {
         private val viewConstructors = mutableMapOf<String, ViewConstructor>()
-        internal var attrSets = mutableMapOf<Int, AttributeSet>()
+        internal var attrSets = HashMap<Int, CachedAttrSet>()
+
+        /**
+         * An `AttributeSet` is parsed against a Context, so it carries that context's resources and
+         * configuration. The cache used to be keyed by resource id alone, which meant the first
+         * Activity to ask for a given `@XmlRes` pinned its context for the life of the process and
+         * every later view of that id read the configuration it was built with.
+         */
+        internal class CachedAttrSet(val context: Context, val set: AttributeSet)
 
         val hibariNodeKey = R.id.hibari_node_key
 
@@ -205,24 +213,29 @@ class Renderer(
         }; return processed
     }
 
-    internal fun createAttributeSet(context: Context, @XmlRes attrXml: Int): AttributeSet =
-        attrSets.getOrPut(attrXml) {
-            if (attrXml == -1) {
-                XmlBlockBypass.newAttrSet(context)
-            } else {
-                runCatching {
-                    val parser = context.resources.getXml(attrXml)
-                    var type = parser.eventType
-                    while (type != XmlPullParser.START_TAG && type != XmlPullParser.END_DOCUMENT) {
-                        type = parser.next()
-                    }
-                    if (type != XmlPullParser.START_TAG) {
-                        hibariRuntimeError("No start tag found for XML resource $attrXml")
-                    }
-                    Xml.asAttributeSet(parser)
-                }.getOrElse { hibariRuntimeError("Failed to create attribute set", it) }
-            }
+    internal fun createAttributeSet(context: Context, @XmlRes attrXml: Int): AttributeSet {
+        // Only a set built against this very context is reusable: it carries the resources and
+        // configuration of the context it came from.
+        attrSets[attrXml]?.let { if (it.context === context) return it.set }
+
+        val created = if (attrXml == -1) {
+            XmlBlockBypass.newAttrSet(context)
+        } else {
+            runCatching {
+                val parser = context.resources.getXml(attrXml)
+                var type = parser.eventType
+                while (type != XmlPullParser.START_TAG && type != XmlPullParser.END_DOCUMENT) {
+                    type = parser.next()
+                }
+                if (type != XmlPullParser.START_TAG) {
+                    hibariRuntimeError("No start tag found for XML resource $attrXml")
+                }
+                Xml.asAttributeSet(parser)
+            }.getOrElse { hibariRuntimeError("Failed to create attribute set", it) }
         }
+        attrSets[attrXml] = CachedAttrSet(context, created)
+        return created
+    }
 
     private inner class ViewConstructor(
         private val instance: Constructor<*>,
