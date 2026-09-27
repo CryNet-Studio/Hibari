@@ -28,7 +28,7 @@ class TuneStatsTest {
 
     @Test
     fun `a switched off collector records nothing`() {
-        TuneStats.markNode()
+        TuneStats.markNode("1-1")
         TuneStats.markViewCreated()
         TuneStats.addAttributeWrites(5)
         TuneStats.markPositionalPatch(2)
@@ -54,8 +54,8 @@ class TuneStatsTest {
     fun `an enabled window sums the phases and the hits`() {
         TuneStats.enabled = true
 
-        TuneStats.markNode()
-        TuneStats.markNode()
+        TuneStats.markNode("7-1")
+        TuneStats.markNode("7-2")
         TuneStats.addAttributeWrites(3)
         TuneStats.markPositionalPatch(2)
         TuneStats.markMyersPatch()
@@ -74,6 +74,21 @@ class TuneStatsTest {
         assertTrue(TuneStats.report().contains("window=1"))
         assertTrue(TuneStats.report().contains("composition=2.00ms"))
         assertTrue(TuneStats.report().contains("patch=1.00ms"))
+    }
+
+    @Test
+    fun `the report names the fattest top level groups`() {
+        TuneStats.enabled = true
+        TuneStats.markNode("3-1")
+        TuneStats.markNode("3-2")
+        TuneStats.markNode("9#2-4")
+        TuneStats.recordTune(1_000_000L, 1_000_000L, -1L, -1L)
+
+        // Averaged over the window and keyed by the root group, because that is the subtree a skip
+        // pass would have to cover; a loop sibling counts as its own group entry.
+        val report = TuneStats.report()
+        assertTrue(report.contains("3=2"))
+        assertTrue(report.contains("9=1"))
     }
 
     @Test

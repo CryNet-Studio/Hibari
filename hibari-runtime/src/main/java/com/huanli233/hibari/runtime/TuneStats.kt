@@ -48,6 +48,9 @@ object TuneStats {
     var slotsChanged = 0L
         private set
 
+    /** Nodes emitted per top level group, so a fat subtree is readable without a profiler. */
+    private val nodeBuckets = HashMap<String, Long>()
+
     private fun globalAllocCount(): Long {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return -1L
         // The platform counter is an int here, so widen it explicitly rather than letting the two
@@ -78,12 +81,19 @@ object TuneStats {
         }
     }
 
-    internal fun markNode() {
-        if (enabled) nodesEmitted++
-    }
-
     internal fun markViewCreated() {
         if (enabled) viewsCreated++
+    }
+
+    /**
+     * A full path is unique per node, which would make a histogram of them useless; the root group is
+     * the interesting half, because that is the subtree a skip pass would have to cover.
+     */
+    internal fun markNode(path: String) {
+        if (!enabled) return
+        nodesEmitted++
+        val root = path.substringBefore('-').substringBefore('#')
+        nodeBuckets[root] = (nodeBuckets[root] ?: 0L) + 1L
     }
 
     internal fun addAttributeWrites(count: Int) {
@@ -113,6 +123,7 @@ object TuneStats {
         positionalPatches = 0
         myersPatches = 0
         slotsChanged = 0
+        nodeBuckets.clear()
     }
 
     fun report(): String {
@@ -126,7 +137,16 @@ object TuneStats {
                 "views/tune=" + (viewsCreated / tunes) + " " +
                 "attrWrites=" + attributeWrites + " " +
                 "positional=" + positionalPatches + " myers=" + myersPatches +
-                " slotsChanged=" + slotsChanged
+                " slotsChanged=" + slotsChanged + " | fattest=" + fattestGroups()
+    }
+
+    /** The three groups emitting the most nodes in the window - where a skip pass would pay. */
+    private fun fattestGroups(): String {
+        if (nodeBuckets.isEmpty()) return "-"
+        return nodeBuckets.entries
+            .sortedByDescending { (_, count) -> count }
+            .take(3)
+            .joinToString(" ") { (group, count) -> "$group=${count / tunes.coerceAtLeast(1L)}" }
     }
 
     private fun ms(nanos: Long): String = String.format(Locale.US, "%.2f", nanos / 1_000_000.0)
