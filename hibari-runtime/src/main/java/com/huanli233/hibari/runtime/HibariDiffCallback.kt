@@ -7,9 +7,7 @@ import com.huanli233.hibari.ui.AttrsAttribute
 import com.huanli233.hibari.ui.Modifier
 import com.huanli233.hibari.ui.ViewClassAttribute
 import com.huanli233.hibari.ui.flattenToList
-import com.huanli233.hibari.ui.layoutAttributes
 import com.huanli233.hibari.ui.node.Node
-import com.huanli233.hibari.ui.viewAttributes
 import java.util.IdentityHashMap
 import java.util.Objects
 
@@ -35,8 +33,17 @@ class HibariDiffCallback(
      */
     private class NodeFacts(node: Node) {
         val flattened: List<Modifier.Element> = node.modifier.flattenToList()
-        val viewAttributes: Map<Any, Attribute<*>> = flattened.viewAttributes().associateBy { it.key }
-        val layoutAttributes: Map<Any, Attribute<*>> = flattened.layoutAttributes().associateBy { it.key }
+
+        /**
+         * The node's attributes in the order the chain holds them.
+         *
+         * A chain can carry the same key twice: every overload of a modifier helper builds its
+         * attribute at one call site, and one call site gets one key. Keeping them as a list rather
+         * than one slot per key is what lets the diff see a change to the earlier of the two, and the
+         * order is what makes the patch write them the way the chain reads.
+         */
+        val attributes: List<Attribute<*>> = flattened.filterIsInstance<Attribute<*>>()
+        val attributeGroups: Map<Any, List<Attribute<*>>> = attributes.groupBy { it.key }
         val viewClassAttribute: ViewClassAttribute? =
             flattened.firstOrNull { it is ViewClassAttribute } as? ViewClassAttribute
         val attrsAttribute: AttrsAttribute? =
@@ -46,8 +53,7 @@ class HibariDiffCallback(
 
         fun equivalentContents(other: NodeFacts): Boolean =
             flattened.size == other.flattened.size &&
-                    viewAttributes == other.viewAttributes &&
-                    layoutAttributes == other.layoutAttributes &&
+                    attributeGroups == other.attributeGroups &&
                     viewClassAttribute == other.viewClassAttribute &&
                     attrsAttribute == other.attrsAttribute &&
                     runtimeAttrsAttribute == other.runtimeAttrsAttribute
@@ -154,25 +160,31 @@ class HibariDiffCallback(
             return null
         }
 
+        val oldGroups = oldNodeFacts.attributeGroups
+        val newGroups = newNodeFacts.attributeGroups
+        // An attribute that left the chain took its value with it while the view still shows it, so
+        // the view has to be rebuilt. One that has only arrived needs nothing taken off the view, so
+        // it can be patched on: that is what a conditional modifier turning on looks like.
+        for ((key, oldGroup) in oldGroups) {
+            val newGroup = newGroups[key] ?: return null
+            if (newGroup.size < oldGroup.size) return null
+        }
+
         val changedReusableMods = mutableListOf<Attribute<*>>()
-        val allOldAttrs = oldNodeFacts.viewAttributes + oldNodeFacts.layoutAttributes
-        val allNewAttrs = newNodeFacts.viewAttributes + newNodeFacts.layoutAttributes
-        val allKeys = allOldAttrs.keys + allNewAttrs.keys
+        val occurrences = HashMap<Any, Int>()
+        // Walked in chain order, because attributes can write the same property and the last of them
+        // is the one the view should end up showing.
+        for (attribute in newNodeFacts.attributes) {
+            val occurrence = occurrences.getOrDefault(attribute.key, 0)
+            occurrences[attribute.key] = occurrence + 1
 
-        for (key in allKeys) {
-            val oldAttr = allOldAttrs[key]
-            val newAttr = allNewAttrs[key]
+            val oldAttr = oldGroups[attribute.key]?.getOrNull(occurrence)
+            if (oldAttr == attribute) continue
 
-            if (oldAttr == newAttr) continue
-
-            if (newAttr != null) {
-                if (newAttr.reuseSupported) {
-                    changedReusableMods.add(newAttr)
-                } else {
-                    return null
-                }
-            } else {
+            if (!attribute.reuseSupported) {
                 return null
+            } else {
+                changedReusableMods.add(attribute)
             }
         }
 

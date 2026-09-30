@@ -172,5 +172,104 @@ class HibariDiffCallbackTest {
         assertEquals(payload, callback.getChangePayload(0, 0))
     }
 
+    @Test
+    fun `the earlier of two attributes sharing a key is still seen`() {
+        val callback = HibariDiffCallback(
+            listOf(duplexNode(8, 4)),
+            listOf(duplexNode(6, 4))
+        )
+
+        // Both attributes carry the "alpha" key, the way two calls to one modifier helper do. One
+        // slot per key made the first of them invisible, so a change to it patched nothing.
+        assertFalse(callback.areContentsTheSame(0, 0))
+
+        val payload = callback.getChangePayload(0, 0) as HibariDiffCallback.ModifierChangePayload
+        assertEquals(listOf<Any>(6), payload.changedAttributes.map(Attribute<*>::value))
+    }
+
+    @Test
+    fun `two attributes sharing a key are reported in chain order`() {
+        val callback = HibariDiffCallback(
+            listOf(duplexNode(8, 4)),
+            listOf(duplexNode(6, 2))
+        )
+
+        val payload = callback.getChangePayload(0, 0) as HibariDiffCallback.ModifierChangePayload
+
+        // They write the same property, so the view has to end up showing the last of the chain.
+        assertEquals(listOf<Any>(6, 2), payload.changedAttributes.map(Attribute<*>::value))
+    }
+
+    @Test
+    fun `swapping two attributes that share a key is a change`() {
+        val callback = HibariDiffCallback(
+            listOf(duplexNode(8, 4)),
+            listOf(duplexNode(4, 8))
+        )
+
+        assertFalse(callback.areContentsTheSame(0, 0))
+
+        val payload = callback.getChangePayload(0, 0) as HibariDiffCallback.ModifierChangePayload
+        assertEquals(listOf<Any>(4, 8), payload.changedAttributes.map(Attribute<*>::value))
+    }
+
+    @Test
+    fun `identical duplicates report no change`() {
+        val callback = HibariDiffCallback(
+            listOf(duplexNode(8, 4)),
+            listOf(duplexNode(8, 4))
+        )
+
+        assertTrue(callback.areContentsTheSame(0, 0))
+        assertNull(callback.getChangePayload(0, 0))
+    }
+
+    @Test
+    fun `a duplicate that disappears forces a recreate`() {
+        val callback = HibariDiffCallback(
+            listOf(duplexNode(8, 4)),
+            listOf(duplexNode(8))
+        )
+
+        assertFalse(callback.areContentsTheSame(0, 0))
+        // The value the remaining attribute no longer contributes is still on the view, and a payload
+        // of what is left cannot take it back off.
+        assertNull(callback.getChangePayload(0, 0))
+    }
+
+    @Test
+    fun `an attribute the old chain never had is patched on`() {
+        val callback = HibariDiffCallback(
+            listOf(shapedNode("alpha" to 8)),
+            listOf(shapedNode("alpha" to 8, "beta" to 1))
+        )
+
+        assertFalse(callback.areContentsTheSame(0, 0))
+
+        // A conditional modifier appearing is the common case, and a view that never had the value
+        // needs nothing taken back off it, so this must not fall back to rebuilding.
+        val payload = callback.getChangePayload(0, 0) as HibariDiffCallback.ModifierChangePayload
+        assertEquals(listOf<Any>(1), payload.changedAttributes.map(Attribute<*>::value))
+    }
+
+    @Test
+    fun `an attribute the new chain no longer has forces a recreate`() {
+        val callback = HibariDiffCallback(
+            listOf(shapedNode("alpha" to 8, "beta" to 1)),
+            listOf(shapedNode("alpha" to 8))
+        )
+
+        assertFalse(callback.areContentsTheSame(0, 0))
+        assertNull(callback.getChangePayload(0, 0))
+    }
+
+    private fun shapedNode(vararg attributes: Pair<String, Any>): Node {
+        var modifier = Modifier.then(ViewClassAttribute(View::class.java))
+        for ((key, value) in attributes) modifier = modifier.then(ViewAttribute(key, Applier, value))
+        return Node(modifier = modifier)
+    }
+
+    private fun duplexNode(vararg values: Any): Node = shapedNode(*values.map { "alpha" to it }.toTypedArray())
+
     private class TextViewLike : View(null)
 }

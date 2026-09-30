@@ -28,7 +28,13 @@ fun RelativeLayout(
  */
 interface RelativeLayoutScope {
     private fun Modifier.addRule(verb: Int, subject: Int? = null): Modifier =
-        this.thenLayoutAttribute<RelativeLayout.LayoutParams, Pair<Int, Int?>>(uniqueKey, verb to subject) { it, _ ->
+        // The key carries the verb because attributes are diffed per key, and `uniqueKey` is one
+        // constant for this whole function: every rule helper would otherwise share it, so a chain
+        // with two of them would compare as a single attribute and only the last one could change.
+        this.thenLayoutAttribute<RelativeLayout.LayoutParams, Pair<Int, Int?>>(
+            uniqueKey to verb,
+            verb to subject
+        ) { it, _ ->
             if (subject == null) addRule(it.first) else addRule(it.first, it.second!!)
         }
 
