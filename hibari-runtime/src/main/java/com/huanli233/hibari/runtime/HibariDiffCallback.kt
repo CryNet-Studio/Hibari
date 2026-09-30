@@ -43,7 +43,9 @@ class HibariDiffCallback(
          * order is what makes the patch write them the way the chain reads.
          */
         val attributes: List<Attribute<*>> = flattened.filterIsInstance<Attribute<*>>()
-        val attributeGroups: Map<Any, List<Attribute<*>>> = attributes.groupBy { it.key }
+
+        /** Built only when the two chains differ beyond order, which is the uncommon answer. */
+        val attributeGroups: Map<Any, List<Attribute<*>>> by lazy { attributes.groupBy { it.key } }
         val viewClassAttribute: ViewClassAttribute? =
             flattened.firstOrNull { it is ViewClassAttribute } as? ViewClassAttribute
         val attrsAttribute: AttrsAttribute? =
@@ -53,7 +55,7 @@ class HibariDiffCallback(
 
         fun equivalentContents(other: NodeFacts): Boolean =
             flattened.size == other.flattened.size &&
-                    attributeGroups == other.attributeGroups &&
+                    (attributes == other.attributes || attributeGroups == other.attributeGroups) &&
                     viewClassAttribute == other.viewClassAttribute &&
                     attrsAttribute == other.attrsAttribute &&
                     runtimeAttrsAttribute == other.runtimeAttrsAttribute

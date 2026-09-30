@@ -263,6 +263,19 @@ class HibariDiffCallbackTest {
         assertNull(callback.getChangePayload(0, 0))
     }
 
+    @Test
+    fun `attributes writing different properties may arrive in any order`() {
+        val callback = HibariDiffCallback(
+            listOf(shapedNode("alpha" to 8, "beta" to 1)),
+            listOf(shapedNode("beta" to 1, "alpha" to 8))
+        )
+
+        // Two keys write two different view properties, so which of them the chain holds first makes
+        // no difference to the view. Only a repeat of one key has an order to respect.
+        assertTrue(callback.areContentsTheSame(0, 0))
+        assertNull(callback.getChangePayload(0, 0))
+    }
+
     private fun shapedNode(vararg attributes: Pair<String, Any>): Node {
         var modifier = Modifier.then(ViewClassAttribute(View::class.java))
         for ((key, value) in attributes) modifier = modifier.then(ViewAttribute(key, Applier, value))
