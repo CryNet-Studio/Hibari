@@ -57,6 +57,30 @@ internal fun forgetUntouchedSlots(
     touched.clear()
 }
 
+/**
+ * Writes one `remember` slot and owns the observer lifecycle that goes with it: the value the slot
+ * gave up is forgotten, the value it takes is remembered, once each. `Tunables.cache` used to run the
+ * same pair around this call, which doubled both - a `DisposableEffect` ran its body twice and kept
+ * only the second cleanup handle, so the first subscription could never be released.
+ */
+internal fun putRememberedSlot(
+    memory: MutableMap<String, Any?>,
+    owned: HashMap<String, Any?>,
+    touched: HashSet<String>,
+    path: String,
+    value: Any?,
+) {
+    touched.add(path)
+    owned[path] = value
+    val oldValue = memory.put(path, value)
+    if (oldValue != null && oldValue != value) {
+        val oldRemembered = (oldValue as? Pair<*, *>)?.second
+        (oldRemembered as? RememberObserver)?.onForgotten()
+    }
+    val newRemembered = (value as? Pair<*, *>)?.second
+    (newRemembered as? RememberObserver)?.onRemembered()
+}
+
 val hibariViewId = R.id.hibari_view_tag
 
 val subcomposeLayoutId = R.id.sub_compose_layout
@@ -228,16 +252,7 @@ open class Tuner(
     }
 
     fun updateRememberedValue(value: Any?) {
-        val path = walker.path()
-        touchedSlots.add(path)
-        ownedSlots[path] = value
-        val oldValue = memory.put(path, value)
-        if (oldValue != null && oldValue != value) {
-            val oldRemembered = (oldValue as? Pair<*, *>)?.second
-            (oldRemembered as? RememberObserver)?.onForgotten()
-        }
-        val newRemembered = (value as? Pair<*, *>)?.second
-        (newRemembered as? RememberObserver)?.onRemembered()
+        putRememberedSlot(memory, ownedSlots, touchedSlots, walker.path(), value)
     }
 
     @Suppress("UNCHECKED_CAST")

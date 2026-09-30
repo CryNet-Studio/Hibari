@@ -29,12 +29,11 @@ inline fun <T> Tuner.cache(keys: Array<out Any?>, block: @DisallowTunableCalls (
     val invalid = entry == null || (keys.isNotEmpty() && !keys.contentDeepEquals(entry.first))
 
     return if (invalid) {
-        (entry?.second as? RememberObserver)?.onForgotten()
-
         val value = block()
+        // This one call owns both halves of the lifecycle: it forgets what the slot held and
+        // remembers what it holds now. Doing either here as well ran the pair twice, which for a
+        // DisposableEffect meant two subscriptions and only the second one's cleanup kept.
         updateRememberedValue(Pair(keys, value))
-
-        (value as? RememberObserver)?.onRemembered()
         value
     } else {
         entry.second
