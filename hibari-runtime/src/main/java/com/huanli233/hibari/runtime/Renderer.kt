@@ -103,7 +103,7 @@ class Renderer(
             }
         }
 
-        val modifierAttrs = node.modifier.flattenToList()
+        val modifierAttrs = node.flattened
 
         val viewClass = (modifierAttrs.firstOrNull { it is ViewClassAttribute } as? ViewClassAttribute)?.viewClass
             ?: hibariRuntimeError("The view class cannot be null.")
@@ -480,8 +480,7 @@ open class ViewMeasurable(
         get() = view.context
 
     override val parentData: Any? by lazy {
-        node?.modifier
-            ?.flattenToList()
+        node?.flattened
             ?.filterIsInstance<ParentDataModifier>()
             ?.fold(null as Any?) { currentData, modifier ->
                 modifier.modifyParentData(currentData)
@@ -489,7 +488,7 @@ open class ViewMeasurable(
     }
 
     init {
-        val layoutModifiers = node?.modifier?.flattenToList()?.filterIsInstance<LayoutModifierNode>() ?: emptyList()
+        val layoutModifiers = node?.flattened?.filterIsInstance<LayoutModifierNode>() ?: emptyList()
 
         val baseMeasure: (Constraints) -> Placeable = { c ->
             BasePlaceable(view, c)

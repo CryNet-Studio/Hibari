@@ -32,7 +32,7 @@ class HibariDiffCallback(
      * the same four collections.
      */
     private class NodeFacts(node: Node) {
-        val flattened: List<Modifier.Element> = node.modifier.flattenToList()
+        val flattened: List<Modifier.Element> = node.flattened
 
         /**
          * The node's attributes in the order the chain holds them.

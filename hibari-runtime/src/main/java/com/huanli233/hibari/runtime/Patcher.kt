@@ -141,7 +141,7 @@ class Patcher(val renderer: Renderer) {
         }
 
         HibariLog.d(TAG) {
-            val nodeViewClass = (newNode.modifier.flattenToList()
+            val nodeViewClass = (newNode.flattened
                 .firstOrNull { it is ViewClassAttribute } as? ViewClassAttribute)
                 ?.viewClass?.simpleName ?: "UnknownNode"
             "  -> Preparing to update view: ${viewToUpdate.javaClass.simpleName} " +
