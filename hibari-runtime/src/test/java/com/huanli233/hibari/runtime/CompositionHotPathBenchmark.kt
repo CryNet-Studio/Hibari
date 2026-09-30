@@ -6,6 +6,7 @@ import com.huanli233.hibari.ui.Modifier
 import com.huanli233.hibari.ui.ViewAttribute
 import com.huanli233.hibari.ui.ViewClassAttribute
 import com.huanli233.hibari.ui.node.Node
+import com.huanli233.hibari.runtime.snapshots.Snapshot
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -28,6 +29,8 @@ class CompositionHotPathBenchmark {
     private val outerKeys = IntArray(8) { 1_770_000_000 + it }
     private val middleKeys = IntArray(5) { 1_770_100_000 + it }
     private val leafKeys = IntArray(20) { 1_770_200_000 + it }
+
+    private val ignoreReads: (Any) -> Unit = {}
 
     /** µs per round, best of three windows, printed so the number outlives the assertion. */
     private fun measure(label: String, rounds: Int, ceilingMicros: Long, body: () -> Unit): Long {
@@ -147,13 +150,33 @@ class CompositionHotPathBenchmark {
         }
     }
 
+    /**
+     * The snapshot one tune takes, runs and applies. A lazy list tunes a session per row bound, so
+     * this is paid as many times per frame as there are rows, whatever else the round does. The read
+     * observer is held in a field so the round measures the snapshot, not a captured closure.
+     */
+    @Test
+    fun `snapshot taken applied and disposed per tune`() {
+        val counter = mutableStateOf(0)
+        val label = mutableStateOf("")
+
+        measure("snapshot take + 2 reads + write + apply + dispose", 20_000, ceilingMicros = 200) {
+            val snapshot = Snapshot.takeMutableSnapshot(readObserver = ignoreReads)
+            snapshot.enter {
+                label.value
+                counter.value = counter.value + 1
+            }
+            snapshot.apply()
+            snapshot.dispose()
+        }
+    }
+
     /** The pruning pass at the end of a round, over the slot count a large host holds. */
     @Test
     fun `slot pruning over a thousand slots`() {
         val memory = HashMap<String, Any?>()
         val owned = HashMap<String, Any?>()
         val touched = HashSet<String>()
-        val scratch = ArrayList<String>()
         val paths = (0 until 1000).map {
             "${outerKeys[it and 7]}-${middleKeys[it % 5]}-${leafKeys[it % 20]}#$it"
         }
@@ -169,7 +192,7 @@ class CompositionHotPathBenchmark {
 
         measure("prune 100 of 1000 slots", 500, ceilingMicros = 400) {
             for (path in touchedPaths) touched.add(path)
-            forgetUntouchedSlots(memory, owned, touched, scratch)
+            forgetUntouchedSlots(memory, owned, touched)
             // Re-arm the maps so each round has the same amount of work to do.
             for (path in stalePaths) {
                 val value = memory[path] ?: owned[path] ?: Unit

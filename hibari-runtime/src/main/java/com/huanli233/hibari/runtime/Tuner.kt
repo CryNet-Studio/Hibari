@@ -31,21 +31,17 @@ internal fun forgetUntouchedSlots(
     memory: MutableMap<String, Any?>,
     owned: HashMap<String, Any?>,
     touched: HashSet<String>,
-    scratch: ArrayList<String>,
 ) {
-    if (owned.isEmpty()) {
-        touched.clear()
-        return
-    }
-
-    scratch.clear()
-    for ((path, value) in owned) {
-        if (path !in touched) scratch.add(path)
-    }
-
-    for (index in scratch.indices) {
-        val path = scratch[index]
-        val value = owned.remove(path)
+    // One pass over the table with its own iterator: the paths to drop used to be collected into a
+    // scratch list and removed one by one afterwards, which re-hashed every one of them and walked
+    // the table twice to release a handful.
+    val entries = owned.entries.iterator()
+    while (entries.hasNext()) {
+        val entry = entries.next()
+        val path = entry.key
+        if (path in touched) continue
+        val value = entry.value
+        entries.remove()
         if (memory[path] === value) {
             memory.remove(path)
             (value as? Pair<*, *>)?.let { pair ->
@@ -189,7 +185,6 @@ open class Tuner(
     /** The slots written by this tuner, with the value it wrote, so a shared map stays prunable. */
     private val ownedSlots = HashMap<String, Any?>()
     private val touchedSlots = HashSet<String>()
-    private val forgottenScratch = ArrayList<String>()
 
     /** The writes that woke the round about to run; empty when the round was forced, not woken. */
     internal var roundChangedStates: Set<Any> = emptySet()
@@ -247,7 +242,7 @@ open class Tuner(
         if (nodeStack.size != 1) {
             hibariRuntimeError("Composition stack imbalance. Mismatched start/end calls.")
         }
-        forgetUntouchedSlots(memory, ownedSlots, touchedSlots, forgottenScratch)
+        forgetUntouchedSlots(memory, ownedSlots, touchedSlots)
         census?.let {
             TuneStats.recordGroups(it.groupsSeen(), it.cleanGroupCount())
             census = null

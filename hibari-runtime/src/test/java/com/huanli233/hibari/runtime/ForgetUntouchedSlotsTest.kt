@@ -33,7 +33,7 @@ class ForgetUntouchedSlotsTest {
         val memory = hashMapOf<String, Any?>("1-2" to value)
         val owned = hashMapOf<String, Any?>("1-2" to value)
 
-        forgetUntouchedSlots(memory, owned, hashSetOf(), arrayListOf())
+        forgetUntouchedSlots(memory, owned, hashSetOf())
 
         assertEquals(1, probe.forgotten)
         assertFalse(memory.containsKey("1-2"))
@@ -48,7 +48,7 @@ class ForgetUntouchedSlotsTest {
         val owned = hashMapOf<String, Any?>("1-2" to value)
         val touched = hashSetOf("1-2")
 
-        forgetUntouchedSlots(memory, owned, touched, arrayListOf())
+        forgetUntouchedSlots(memory, owned, touched)
 
         assertEquals(0, probe.forgotten)
         assertTrue(memory.containsKey("1-2"))
@@ -65,7 +65,7 @@ class ForgetUntouchedSlotsTest {
         val memory = hashMapOf<String, Any?>("1-2" to theirsValue)
         val owned = hashMapOf<String, Any?>("1-2" to mineValue)
 
-        forgetUntouchedSlots(memory, owned, hashSetOf(), arrayListOf())
+        forgetUntouchedSlots(memory, owned, hashSetOf())
 
         assertEquals(0, mine.forgotten)
         assertTrue(memory.containsKey("1-2"))
@@ -77,7 +77,7 @@ class ForgetUntouchedSlotsTest {
     fun `the first composition has nothing to forget`() {
         val memory = hashMapOf<String, Any?>("1-2" to slot(Probe()))
 
-        forgetUntouchedSlots(memory, hashMapOf(), hashSetOf(), arrayListOf())
+        forgetUntouchedSlots(memory, hashMapOf(), hashSetOf())
 
         assertTrue(memory.containsKey("1-2"))
     }
@@ -91,10 +91,36 @@ class ForgetUntouchedSlotsTest {
         val memory = hashMapOf<String, Any?>("1" to keptValue, "2" to droppedValue)
         val owned = hashMapOf<String, Any?>("1" to keptValue, "2" to droppedValue)
 
-        forgetUntouchedSlots(memory, owned, hashSetOf("1"), arrayListOf())
+        forgetUntouchedSlots(memory, owned, hashSetOf("1"))
 
         assertEquals(0, kept.forgotten)
         assertEquals(1, dropped.forgotten)
         assertEquals(mapOf("1" to keptValue), memory)
+    }
+
+    /**
+     * The touched set is the record of one round, so it is drained whether or not the round dropped
+     * anything: left standing, every slot of the next round would already look touched and nothing
+     * would ever be released again.
+     */
+    @Test
+    fun `the touched set is drained when nothing was dropped`() {
+        val value = slot(Probe())
+        val memory = hashMapOf<String, Any?>("1" to value)
+        val owned = hashMapOf<String, Any?>("1" to value)
+        val touched = hashSetOf("1")
+
+        forgetUntouchedSlots(memory, owned, touched)
+
+        assertTrue(touched.isEmpty())
+    }
+
+    @Test
+    fun `the touched set is drained when the tuner owns nothing`() {
+        val touched = hashSetOf("1")
+
+        forgetUntouchedSlots(hashMapOf<String, Any?>(), hashMapOf(), touched)
+
+        assertTrue(touched.isEmpty())
     }
 }

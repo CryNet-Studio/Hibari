@@ -83,7 +83,7 @@ class RememberSlotLifecycleTest {
         // The next round does not reach this slot, so the pruning pass releases it - and releases it
         // only because the value it wrote is still the one in memory.
         touched.clear()
-        forgetUntouchedSlots(memory, owned, touched, arrayListOf())
+        forgetUntouchedSlots(memory, owned, touched)
 
         assertEquals(1, observer.forgotten)
         assertTrue(memory.isEmpty())
