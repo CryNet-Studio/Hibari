@@ -6,6 +6,7 @@ import android.util.AttributeSet
 import android.util.Xml
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewGroup.MarginLayoutParams
 import android.view.ViewGroup.getChildMeasureSpec
 import androidx.annotation.Px
 import androidx.annotation.XmlRes
@@ -388,9 +389,7 @@ internal class LayoutNodeHost(context: Context) : ViewGroup(context) {
     var node: Node? = null
         set(value) {
             field = value
-            if (value != null) {
-                measurePolicy = value.measurePolicy
-            }
+            measurePolicy = value?.measurePolicy
             requestLayout()
         }
     private var measurePolicy: MeasurePolicy? = null
@@ -439,8 +438,33 @@ internal class LayoutNodeHost(context: Context) : ViewGroup(context) {
         rootPlaceable?.placeAt(0, 0)
     }
 
+    /**
+     * The children of a measure policy host are ordinary views, and a modifier like margin writes
+     * through `MarginLayoutParams`. Handing out bare `ViewGroup.LayoutParams` made
+     * `updateLayoutParams` throw a ClassCastException on the first such child, and left every child
+     * creation here paying a failed `Class.forName` before falling back to this method reflectively.
+     */
+    class LayoutParams : MarginLayoutParams {
+        constructor() : super(WRAP_CONTENT, WRAP_CONTENT)
+        constructor(width: Int, height: Int) : super(width, height)
+        constructor(source: ViewGroup.LayoutParams) : super(source)
+        constructor(c: Context, attrs: AttributeSet) : super(c, attrs)
+    }
+
     override fun generateDefaultLayoutParams(): LayoutParams {
-        return LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
+        return LayoutParams()
+    }
+
+    override fun generateLayoutParams(attrs: AttributeSet): LayoutParams {
+        return LayoutParams(context, attrs)
+    }
+
+    override fun generateLayoutParams(p: ViewGroup.LayoutParams): LayoutParams {
+        return LayoutParams(p)
+    }
+
+    override fun checkLayoutParams(lp: ViewGroup.LayoutParams?): Boolean {
+        return lp is LayoutParams
     }
 }
 

@@ -16,6 +16,7 @@ import com.huanli233.hibari.foundation.Box
 import com.huanli233.hibari.foundation.Column
 import com.huanli233.hibari.foundation.Node
 import com.huanli233.hibari.foundation.attributes.alpha
+import com.huanli233.hibari.foundation.attributes.margin
 import com.huanli233.hibari.foundation.attributes.matchParentSize
 import com.huanli233.hibari.foundation.attributes.matchParentWidth
 import com.huanli233.hibari.foundation.attributes.onClick
@@ -103,13 +104,15 @@ class TestActivity: AppCompatActivity() {
                         // Measure-host probe. A policy has never been supplied to Node(measurePolicy
                         // = …) anywhere in this repository, so the path the size animation would have
                         // to be built on has never run. Pass condition: three rows stacked with no
-                        // overlap and wrapping them tightly.
+                        // overlap and wrapping them tightly. The margin on the second row is a second
+                        // pass condition: a host child used to be given bare layout params, and a
+                        // modifier that needs MarginLayoutParams threw ClassCastException there.
                         Node(
                             modifier = Modifier.matchParentWidth(),
                             measurePolicy = StackingProbePolicy
                         ) {
                             Text("probe row 1")
-                            Text("probe row 2")
+                            Text("probe row 2", Modifier.margin(top = 6.dp))
                             Text("probe row 3")
                         }
                     }
