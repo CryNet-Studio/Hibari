@@ -12,6 +12,7 @@ import com.huanli233.hibari.foundation.attributes.padding
 import com.huanli233.hibari.foundation.attributes.size
 import com.huanli233.hibari.runtime.HibariView
 import com.huanli233.hibari.runtime.currentContext
+import com.huanli233.hibari.runtime.effects.rememberCoroutineScope
 import com.huanli233.hibari.runtime.getValue
 import com.huanli233.hibari.runtime.mutableStateOf
 import com.huanli233.hibari.runtime.remember
@@ -28,6 +29,7 @@ import com.huanli233.hibari.ui.unit.sp
 import com.huanli233.hibari.ui.unit.toPx
 import com.huanli233.hibari.wear.AmbientMode
 import com.huanli233.hibari.wear.AmbientModeHost
+import com.huanli233.hibari.wear.AnimatedPage
 import com.huanli233.hibari.wear.AnimatedText
 import com.huanli233.hibari.wear.AppCard
 import com.huanli233.hibari.wear.ArcProgressIndicator
@@ -53,7 +55,10 @@ import com.huanli233.hibari.wear.FilledTonalButton
 import com.huanli233.hibari.wear.FilledTonalIconButton
 import com.huanli233.hibari.wear.FontScaleIndependent
 import com.huanli233.hibari.wear.FadingExpandingLabel
+import com.huanli233.hibari.wear.HierarchicalFocusRequester
 import com.huanli233.hibari.wear.HorizontalPageIndicator
+import com.huanli233.hibari.wear.HorizontalPager
+import com.huanli233.hibari.wear.HorizontalPagerScaffold
 import com.huanli233.hibari.wear.IconButton
 import com.huanli233.hibari.wear.IconButtonDefaults
 import com.huanli233.hibari.wear.IconToggleButton
@@ -66,7 +71,9 @@ import com.huanli233.hibari.wear.MotionScheme
 import com.huanli233.hibari.wear.OutlinedButton
 import com.huanli233.hibari.wear.OutlinedCard
 import com.huanli233.hibari.wear.OutlinedIconButton
+import com.huanli233.hibari.wear.PagerScaffoldDefaults
 import com.huanli233.hibari.wear.Picker
+import com.huanli233.hibari.wear.PickerGroup
 import com.huanli233.hibari.wear.PrimaryActionButton
 import com.huanli233.hibari.wear.RevealDirection
 import com.huanli233.hibari.wear.RevealValue
@@ -90,6 +97,8 @@ import com.huanli233.hibari.wear.TimePickerSelection
 import com.huanli233.hibari.wear.TimePickerType
 import com.huanli233.hibari.wear.TitleCard
 import com.huanli233.hibari.wear.UndoActionButton
+import com.huanli233.hibari.wear.VerticalPager
+import com.huanli233.hibari.wear.VerticalPagerScaffold
 import com.huanli233.hibari.wear.Vignette
 import com.huanli233.hibari.wear.VignettePosition
 import com.huanli233.hibari.wear.ambientMode
@@ -105,6 +114,7 @@ import com.huanli233.hibari.wear.lazy.ScalingLazyColumn
 import com.huanli233.hibari.wear.lazy.expandableItems
 import com.huanli233.hibari.wear.placeholder
 import com.huanli233.hibari.wear.rememberAnimatedTextFontRegistry
+import com.huanli233.hibari.wear.rememberPagerState
 import com.huanli233.hibari.wear.rememberPickerState
 import com.huanli233.hibari.wear.rememberPlaceholderState
 import com.huanli233.hibari.wear.rememberRevealState
@@ -114,6 +124,7 @@ import com.huanli233.hibari.wear.touchTargetAwareSize
 import com.huanli233.hibari.wear.touchExplorationState
 import java.time.LocalDate
 import java.time.LocalTime
+import kotlinx.coroutines.launch
 
 /**
  * Every component here has only ever been compiled from the inside. This activity calls them the way
@@ -131,6 +142,41 @@ class ApiSmokeActivity : AppCompatActivity() {
                 var page by remember { mutableStateOf(1) }
                 val expandable = remember { ExpandableState() }
                 val pickerState = rememberPickerState(initialNumberOfOptions = 5)
+                // The picker family at the bottom of the list. Hoisted here rather than written in the
+                // item, because `PickerGroup`'s `selectedPickerState` has to be the very same state
+                // object the selected column holds — a second `rememberPickerState` call with the same
+                // numbers would be a different column, and the row would centre nothing.
+                // `gearState` is the one non-repeating column here, which is what makes
+                // `canScrollForward`/`canScrollBackward` ever go false.
+                val gearState = rememberPickerState(
+                    initialNumberOfOptions = 4,
+                    initiallySelectedIndex = 1,
+                    shouldRepeatOptions = false,
+                )
+                val dayState = rememberPickerState(
+                    initialNumberOfOptions = 7,
+                    initiallySelectedIndex = 3,
+                )
+                val hourState = rememberPickerState(
+                    initialNumberOfOptions = 24,
+                    initiallySelectedIndex = 9,
+                )
+                val minuteState = rememberPickerState(
+                    initialNumberOfOptions = 60,
+                    initiallySelectedIndex = 30,
+                )
+                val secondState = rememberPickerState(
+                    initialNumberOfOptions = 60,
+                    initiallySelectedIndex = 45,
+                )
+                // The two pagers overlaid at the bottom of the screen. `pageCount` is a provider, not
+                // an Int, and it is re-read on every tune, so the count may close over changing state.
+                val pagerState = rememberPagerState(pageCount = { 3 })
+                val verticalPagerState = rememberPagerState(pageCount = { 2 })
+                // `PagerState.scrollToPage`/`animateScrollToPage` are suspend, so a consumer needs a
+                // scope of its own to move a page with a button — and it does, because the crown cannot:
+                // `rotaryScrollableBehavior` is not ported for pagers.
+                val pagerScrollScope = rememberCoroutineScope()
                 val skeleton = rememberPlaceholderState(isVisible = true)
                 // State for the sections below. Every one of these is written by a real gesture —
                 // nothing here is a constant the component could never leave.
@@ -143,6 +189,15 @@ class ApiSmokeActivity : AppCompatActivity() {
                 val dialogOpen = remember { mutableStateOf(false) }
                 val dialogShowsDate = remember { mutableStateOf(false) }
                 val picked = remember { mutableStateOf("nothing picked yet") }
+                // Written only by the picker's `onSelected`, which is the accessibility click — on a
+                // real dial that is a tap on the column, not a scroll.
+                val pickerTaps = remember { mutableStateOf(0) }
+                // Which column of the `PickerGroup` below is selected: the row's centring target, the
+                // thing the scroll accessibility actions aim at, and the only one left editable.
+                val groupColumn = remember { mutableStateOf(0) }
+                val groupOwnsFocus = remember { HierarchicalFocusRequester() }
+                val pagerOpen = remember { mutableStateOf(false) }
+                val verticalPagerOpen = remember { mutableStateOf(false) }
                 val reveal = rememberRevealState(initialValue = RevealValue.Covered)
                 // AnimatedText keys its derived state on this lambda, so it is remembered: a fresh
                 // lambda identity per tune would rebuild that derived state on every retune.
@@ -241,6 +296,118 @@ class ApiSmokeActivity : AppCompatActivity() {
                                     contentDescription = { "Option ${pickerState.selectedOptionIndex}" },
                                 ) { index ->
                                     Text("Option $index")
+                                }
+                            }
+                            // Picker, editable and non-repeating. `shouldRepeatOptions = false` is the
+                            // branch where the column stops at its ends, so `canScrollForward` and
+                            // `canScrollBackward` ever go false; `onSelected` is upstream's semantics
+                            // click — a tap on the column, not a scroll — and the counter under it is
+                            // the only visible proof it fired. The box is the caller's, because
+                            // `Picker` sizes nothing of its own.
+                            item {
+                                Column {
+                                    Picker(
+                                        state = gearState,
+                                        contentDescription = { "Gear ${gearState.selectedOptionIndex}" },
+                                        modifier = Modifier.size(DpSize(150.dp, 64.dp)),
+                                        onSelected = { pickerTaps.value += 1 },
+                                    ) { index ->
+                                        Text("Gear $index")
+                                    }
+                                    Text("picker taps: ${pickerTaps.value}")
+                                }
+                            }
+                            // The same component with `readOnly = true`: only the selected option shows,
+                            // under the read-only shim, and `readOnlyLabel` is overlaid above it. That
+                            // stacking is the thing fixed today — the label was being composited under
+                            // the shim, which a compile cannot see and a dial can — so this call site
+                            // exists to be looked at. `userScrollEnabled` stays at its default true,
+                            // which is upstream's advice for a read-only field a tap should open, and the
+                            // label is given `Gravity.TOP_CENTER` through the slot's own `BoxScope`
+                            // because it is an overlay, not a row above the value.
+                            item {
+                                Picker(
+                                    state = dayState,
+                                    contentDescription = { "Day ${dayState.selectedOptionIndex}" },
+                                    modifier = Modifier.size(DpSize(150.dp, 64.dp)),
+                                    readOnly = true,
+                                    readOnlyLabel = {
+                                        Text("Day", modifier = Modifier.gravity(Gravity.TOP_CENTER))
+                                    },
+                                ) { index ->
+                                    Text("Day $index")
+                                }
+                            }
+                            // PickerGroup: three columns, exactly one selected. The two unselected ones
+                            // are read-only through `PickerGroupItem`'s own `readOnly = !selected`, so
+                            // the second column's `readOnlyLabel` is on screen the moment this row
+                            // appears and disappears when that column is tapped.
+                            // `selectedPickerState` is the row's auto-centring target and the picker its
+                            // ACTION_SCROLL_FORWARD/BACKWARD actions move, so it tracks `groupColumn`
+                            // rather than being a fourth state. The height is the caller's: the row
+                            // hands it to every column, and with one row of height there is nothing to
+                            // centre and no band for the label.
+                            item {
+                                PickerGroup(
+                                    modifier = Modifier.size(DpSize(240.dp, 120.dp)),
+                                    selectedPickerState = when (groupColumn.value) {
+                                        1 -> minuteState
+                                        2 -> secondState
+                                        else -> hourState
+                                    },
+                                ) {
+                                    PickerGroupItem(
+                                        pickerState = hourState,
+                                        selected = groupColumn.value == 0,
+                                        onSelected = { groupColumn.value = 0 },
+                                        contentDescription = { "Hour ${hourState.selectedOptionIndex}" },
+                                    ) { index, selected ->
+                                        Text("$index${if (selected) "*" else ""}")
+                                    }
+                                    PickerGroupItem(
+                                        pickerState = minuteState,
+                                        selected = groupColumn.value == 1,
+                                        onSelected = { groupColumn.value = 1 },
+                                        contentDescription = { "Minute ${minuteState.selectedOptionIndex}" },
+                                        readOnlyLabel = {
+                                            Text("Min", modifier = Modifier.gravity(Gravity.TOP_CENTER))
+                                        },
+                                    ) { index, selected ->
+                                        Text("$index${if (selected) "*" else ""}")
+                                    }
+                                    // The third column is the `focusRequester` branch: the caller owns
+                                    // this column's focus, so `PickerGroupItem` binds the requester
+                                    // instead of installing `requestFocusOnHierarchyActive`.
+                                    // `hasFocus()` is the platform's answer and not a state read, so the
+                                    // line under the group only refreshes on the tune that moved
+                                    // `groupColumn`.
+                                    PickerGroupItem(
+                                        pickerState = secondState,
+                                        selected = groupColumn.value == 2,
+                                        onSelected = { groupColumn.value = 2 },
+                                        contentDescription = { "Second ${secondState.selectedOptionIndex}" },
+                                        focusRequester = groupOwnsFocus,
+                                    ) { index, selected ->
+                                        Text("$index${if (selected) "*" else ""}")
+                                    }
+                                }
+                            }
+                            item {
+                                Column {
+                                    Text(
+                                        "column ${groupColumn.value}, third owns focus: " +
+                                            "${groupOwnsFocus.hasFocus()}"
+                                    )
+                                    // The way into the two pager overlays at the bottom of this screen,
+                                    // which are gated because a pager takes the whole dial.
+                                    CompactButton(
+                                        onClick = { pagerOpen.value = true },
+                                        label = { Text("Open the pager") },
+                                    )
+                                    CompactButton(
+                                        onClick = { verticalPagerOpen.value = true },
+                                        label = { Text("Open the vertical pager") },
+                                    )
                                 }
                             }
                             item {
@@ -747,6 +914,79 @@ class ApiSmokeActivity : AppCompatActivity() {
                                     }
                                 },
                         )
+                        // PagerScaffold + HorizontalPager + AnimatedPage, gated and entered from the two
+                        // buttons in the list above. It has to be an overlay: `PagerImpl` and
+                        // `PagerScaffoldImpl` both apply `matchParentSize()` *after* the caller's
+                        // modifier, so a pager cannot be sized down or listed — which makes this the
+                        // same one-boolean shape as the dialog below, and for the same reason.
+                        // `pageIndicator` is deliberately left at its default, because the default is
+                        // the interesting half: the scaffold's indicator slot reads only `pageCount` in
+                        // a tune and pushes the live page and offset onto it per frame through
+                        // `WearPagerIndicatorSlotView`. `pageIndicatorAnimationSpec` is the one
+                        // non-default — with it the dots are hidden while the pager is settled and show
+                        // only during a page turn.
+                        // `AnimatedPage` is the port's `pageTransform`: scale 1 -> 0.55 around the far
+                        // edge plus a half-alpha scrim, clipped to a circle. The crown does not reach a
+                        // pager at all (upstream's `rotaryScrollableBehavior` is not ported), so
+                        // "Next page" is the programmatic half of this state rather than a convenience:
+                        // `animateScrollToPage` is suspend, which is what a consumer needs the scope for.
+                        if (pagerOpen.value) {
+                            HorizontalPagerScaffold(
+                                pagerState = pagerState,
+                                pageIndicatorAnimationSpec = PagerScaffoldDefaults.FadeOutAnimationSpec,
+                            ) {
+                                HorizontalPager(state = pagerState) { page ->
+                                    AnimatedPage(pageIndex = page, pagerState = pagerState) {
+                                        Column {
+                                            Text("Page ${page + 1} of ${pagerState.pageCount}")
+                                            TextButton(
+                                                onClick = {
+                                                    pagerScrollScope.launch {
+                                                        pagerState.animateScrollToPage(
+                                                            (page + 1) % pagerState.pageCount,
+                                                        )
+                                                    }
+                                                },
+                                            ) {
+                                                Text("Next page")
+                                            }
+                                            TextButton(onClick = { pagerOpen.value = false }) {
+                                                Text("Back to the list")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // The vertical sibling, and the two differences upstream has: `VerticalPager`
+                        // takes no gesture-inclusion parameter at all, and the scaffold's default
+                        // indicator is the *end*-aligned `VerticalPageIndicator` rather than the
+                        // bottom-centre one. No `AnimatedPage` here, so the two overlays are not the
+                        // same screenshot, and `scrollToPage` is the instant twin of the animated call
+                        // above.
+                        if (verticalPagerOpen.value) {
+                            VerticalPagerScaffold(pagerState = verticalPagerState) {
+                                VerticalPager(state = verticalPagerState) { page ->
+                                    Column {
+                                        Text("Vertical page ${page + 1}")
+                                        TextButton(
+                                            onClick = {
+                                                pagerScrollScope.launch {
+                                                    verticalPagerState.scrollToPage(
+                                                        (page + 1) % verticalPagerState.pageCount,
+                                                    )
+                                                }
+                                            },
+                                        ) {
+                                            Text("Scroll to the next page")
+                                        }
+                                        TextButton(onClick = { verticalPagerOpen.value = false }) {
+                                            Text("Back to the list")
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         // Last child of the screen root, because with no window there is nothing to lift
                         // this box above a sibling that comes later. dismissOnBackPress is the live half
                         // of DialogProperties here; dismissOnClickOutside is carried and inert, and the
