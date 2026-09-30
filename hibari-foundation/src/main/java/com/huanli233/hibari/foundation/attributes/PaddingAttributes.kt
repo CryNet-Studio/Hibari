@@ -23,12 +23,12 @@ fun Modifier.padding(paddingValues: PaddingValues): Modifier {
         } else {
             LayoutDirection.Ltr
         }
-        setPadding(
+        paddingParts().setOwn(
             pv.calculateLeftPadding(layoutDirection).toPx(this),
             pv.calculateTopPadding().toPx(this),
             pv.calculateRightPadding(layoutDirection).toPx(this),
             pv.calculateBottomPadding().toPx(this)
-        )
+        ).writeInto(this)
     }
 }
 

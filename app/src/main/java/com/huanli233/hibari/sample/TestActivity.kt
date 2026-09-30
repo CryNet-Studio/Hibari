@@ -19,8 +19,10 @@ import com.huanli233.hibari.foundation.attributes.alpha
 import com.huanli233.hibari.foundation.attributes.matchParentSize
 import com.huanli233.hibari.foundation.attributes.matchParentWidth
 import com.huanli233.hibari.foundation.attributes.onClick
+import com.huanli233.hibari.foundation.attributes.padding
 import com.huanli233.hibari.foundation.attributes.scaleX
 import com.huanli233.hibari.foundation.attributes.scaleY
+import com.huanli233.hibari.foundation.attributes.systemBarsPadding
 import com.huanli233.hibari.material.ConstraintLayout
 import com.huanli233.hibari.material.Text
 import com.huanli233.hibari.runtime.HibariView
@@ -34,6 +36,7 @@ import com.huanli233.hibari.runtime.mutableStateOf
 import com.huanli233.hibari.runtime.remember
 import com.huanli233.hibari.runtime.setValue
 import com.huanli233.hibari.ui.Modifier
+import com.huanli233.hibari.ui.unit.dp
 import com.huanli233.hibari.ui.uniqueKey
 import com.huanli233.hibari.ui.viewClass
 
@@ -60,7 +63,15 @@ class TestActivity: AppCompatActivity() {
                 val alpha by transition.animateFloat {
                     if (it) 1f else 0.5f
                 }
-                Box(modifier = Modifier.matchParentSize().onClick { showContent = !showContent }) {
+                // The two padding writers on one chain: `padding` and the system bars inset have to
+                // add, and rotating the device must not creep the content further in each time.
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .padding(8.dp)
+                        .systemBarsPadding()
+                        .onClick { showContent = !showContent }
+                ) {
                     val textModifier = Modifier.gravity(Gravity.CENTER).scaleX(scale).scaleY(scale).alpha(alpha)
                     if (!showContent) {
                         Text(

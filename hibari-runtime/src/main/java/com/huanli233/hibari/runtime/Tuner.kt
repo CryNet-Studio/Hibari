@@ -61,6 +61,8 @@ val hibariViewId = R.id.hibari_view_tag
 
 val subcomposeLayoutId = R.id.sub_compose_layout
 
+val paddingPartsTagId = R.id.hibari_padding_parts
+
 /**
  * The hidden `View.setKeyedTag` is looked up once instead of once per tagged write: every view
  * creation writes two keyed tags, and listener-carrying attributes are re-applied on every

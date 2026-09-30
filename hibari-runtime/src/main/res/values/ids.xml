@@ -6,4 +6,5 @@
     <item name="hibari_node_key" type="id" />
     <item name="hibari_view_tag" type="id" />
     <item name="hibari_state_bindings" type="id" />
+    <item name="hibari_padding_parts" type="id" />
 </resources>
