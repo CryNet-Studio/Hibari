@@ -152,6 +152,9 @@ open class Tuner(
     var memory = tunation.tuneData?.memory?.toMutableMap() ?: hashMapOf()
     val localValueStacks = tunation.tuneData?.localValueStack ?: tunationLocalHashMapOf()
 
+    /** A sub-tunation shares its parent's stacks, so only the owner may drain them. */
+    private val ownsLocalValueStacks = tunation.tuneData?.localValueStack == null
+
     /** The slots written by this tuner, with the value it wrote, so a shared map stays prunable. */
     private val ownedSlots = HashMap<String, Any?>()
     private val touchedSlots = HashSet<String>()
@@ -268,6 +271,10 @@ open class Tuner(
     fun runTunable(tunation: Tunation) {
         HibariLog.i(TAG) { ">>>>>> runTunable for [$tunation] <<<<<<" }
         walker.clear()
+        // A tune that threw halfway left every provider it started still on its stack, and the next
+        // tune would have read the value that dead tune put there. They are always empty by the time
+        // a tune starts, so draining them costs nothing on the normal path.
+        if (ownsLocalValueStacks) localValueStacks.values.forEach { it.clear() }
         SnapshotManager.clearDependencies(tunation)
         val snapshot = Snapshot.takeMutableSnapshot(
             readObserver = {
@@ -275,10 +282,23 @@ open class Tuner(
                 census?.noteRead(walker.path(), it)
             }
         )
-        snapshot.enter {
-            runTunable(tunation.content)
+        val applyResult = try {
+            snapshot.enter {
+                runTunable(tunation.content)
+            }
+            snapshot.apply()
+        } finally {
+            // An open snapshot keeps this tunation alive through its read observer, and apply() does
+            // not close the snapshot when it fails, so every path out has to dispose it.
+            snapshot.dispose()
         }
-        snapshot.apply()
+        if (!applyResult.succeeded) {
+            // The writes this tune made were dropped, so the view still shows the previous tune.
+            // Something else wrote the same state from another thread; ask for another pass, which is
+            // also what the previous code forgot to do, leaving the host quiet until the next change.
+            HibariLog.e(TAG) { "Snapshot apply failed for [$tunation], scheduling another tune" }
+            GlobalRetuner.retuner.scheduleRetune(tunation)
+        }
     }
 
     @Tunable
