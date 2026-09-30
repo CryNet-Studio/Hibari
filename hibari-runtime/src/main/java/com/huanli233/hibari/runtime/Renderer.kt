@@ -112,9 +112,15 @@ class Renderer(
         val id = (modifierAttrs.firstOrNull { it is IdAttribute } as? IdAttribute)?.id
         val intId = (modifierAttrs.firstOrNull { it is IntIdAttribute } as? IntIdAttribute)?.id
 
-        // Only the int is consumed below, so the anonymous case must not build a throwaway name for
-        // it — that was one UUID plus one formatted string per view created.
-        val viewId = if (id != null) generateViewId(id).second else ViewCompat.generateViewId()
+        // The int below wins, so a chain that already carries one must not also be given a name:
+        // `Modifier.constraint { }` on a child without an explicit `id` mints a fresh anonymous name
+        // every tune, and naming it through [generateViewId] memoised each of those names - with an
+        // int no one would have used - in a static map nothing ever leaves.
+        val viewId = when {
+            intId != null -> intId
+            id != null -> generateViewId(id).second
+            else -> ViewCompat.generateViewId()
+        }
 
         // A runtime `Modifier.attrs { }` synthesizes an AttributeSet from name/value pairs (no
         // compiled resource); it takes precedence over the @XmlRes path and is released as soon as
@@ -129,11 +135,7 @@ class Renderer(
             resolver.close()
         }
 
-        if (intId != null) {
-            view?.id = intId
-        } else {
-            view?.id = viewId
-        }
+        view?.id = viewId
         view?.let { view ->
             view.setTag(hibariViewId, id)
 

@@ -38,7 +38,10 @@ fun ExtendedFloatingActionButton(
 ) {
     Node(
         modifier = modifier
-            .viewClass(FloatingActionButton::class.java)
+            // The extended button is a sibling class, not a subclass: built as a plain
+            // `FloatingActionButton`, the two attributes below would cast the view they are handed and
+            // throw on the first apply.
+            .viewClass(ExtendedFloatingActionButton::class.java)
             .thenViewAttributeIfNotNull<ExtendedFloatingActionButton, Any>(uniqueKey, icon) {
                 when (it) {
                     is Int -> setIconResource(it)
