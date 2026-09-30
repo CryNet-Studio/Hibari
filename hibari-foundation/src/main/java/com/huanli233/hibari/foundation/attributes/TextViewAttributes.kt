@@ -89,7 +89,9 @@ fun Modifier.maxLines(maxLines: Int): Modifier {
 fun Modifier.ellipsis(ellipsis: TextTruncateAt): Modifier {
     return this.then(ViewAttribute(uniqueKey, object : AttributeApplier<TextView, TextTruncateAt> {
         override fun apply(target: TextView, value: TextTruncateAt) {
-            when (value) {
+            // The mapping used to be the whole body: it computed a TruncateAt and threw the result
+            // away, so the modifier did nothing at all and a truncated line simply cut off.
+            target.ellipsize = when (value) {
                 TextTruncateAt.START -> TextUtils.TruncateAt.START
                 TextTruncateAt.MIDDLE -> TextUtils.TruncateAt.MIDDLE
                 TextTruncateAt.END -> TextUtils.TruncateAt.END
