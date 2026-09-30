@@ -4,7 +4,7 @@ import android.os.Build
 import android.view.View
 import android.view.ViewGroup
 import com.huanli233.hibari.ui.Modifier
-import com.huanli233.hibari.ui.thenUnitLayoutAttribute
+import com.huanli233.hibari.ui.thenLayoutAttribute
 import com.huanli233.hibari.ui.uniqueKey
 import com.huanli233.hibari.ui.unit.Dp
 import com.huanli233.hibari.ui.unit.LayoutDirection
@@ -12,7 +12,10 @@ import com.huanli233.hibari.ui.unit.PaddingValues
 import com.huanli233.hibari.ui.unit.toPx
 
 fun Modifier.margin(marginValues: PaddingValues): Modifier {
-    return this.thenUnitLayoutAttribute<ViewGroup.MarginLayoutParams>(uniqueKey) { view ->
+    return this.thenLayoutAttribute<ViewGroup.MarginLayoutParams, PaddingValues>(
+        uniqueKey,
+        marginValues
+    ) { values, view ->
         val layoutDirection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
             when (view.layoutDirection) {
                 View.LAYOUT_DIRECTION_LTR -> LayoutDirection.Ltr
@@ -23,10 +26,10 @@ fun Modifier.margin(marginValues: PaddingValues): Modifier {
             LayoutDirection.Ltr
         }
 
-        leftMargin = marginValues.calculateLeftPadding(layoutDirection).toPx(view)
-        rightMargin = marginValues.calculateRightPadding(layoutDirection).toPx(view)
-        topMargin = marginValues.calculateTopPadding().toPx(view)
-        bottomMargin = marginValues.calculateBottomPadding().toPx(view)
+        leftMargin = values.calculateLeftPadding(layoutDirection).toPx(view)
+        rightMargin = values.calculateRightPadding(layoutDirection).toPx(view)
+        topMargin = values.calculateTopPadding().toPx(view)
+        bottomMargin = values.calculateBottomPadding().toPx(view)
     }
 }
 

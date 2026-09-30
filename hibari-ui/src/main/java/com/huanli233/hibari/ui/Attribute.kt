@@ -132,25 +132,30 @@ fun <V : View, T> Modifier.thenViewAttribute(key: Any, value: T, reuseSupported:
             override fun apply(target: V, value: T) {
                 applier(target, value)
             }
-        }, value)
+        }, value, reuseSupported)
     )
 }
 
 fun <V : View, T> Modifier.thenViewAttributeIfNotNull(key: Any, value: T?, reuseSupported: Boolean = true, block: V.(T) -> Unit): Modifier {
     return if (value != null) {
-        this.thenViewAttribute(key, value, applier = block)
+        this.thenViewAttribute(key, value, reuseSupported, applier = block)
     } else {
         this
     }
 }
 
+/**
+ * A [ViewAttribute] with no value. Only for actions that depend on nothing but constants: two
+ * attributes of the same call site compare equal however their closures differ, so a captured
+ * parameter that changes across tunes would never be re-applied.
+ */
 fun <V : View> Modifier.thenUnitViewAttribute(key: Any, reuseSupported: Boolean = true, applier: V.() -> Unit): Modifier {
     return this.then(
         ViewAttribute(key, object : AttributeApplier<V, Unit> {
             override fun apply(target: V, value: Unit) {
                 applier(target)
             }
-        }, Unit)
+        }, Unit, reuseSupported)
     )
 }
 
@@ -160,17 +165,22 @@ fun <V : ViewGroup.LayoutParams, T> Modifier.thenLayoutAttribute(key: Any, value
             override fun apply(target: V, value: T, view: View) {
                 applier(target, value, view)
             }
-        }, value)
+        }, value, reuseSupported)
     )
 }
 
+/**
+ * A [LayoutAttribute] with no value. Only for actions that depend on nothing but constants: two
+ * attributes of the same call site compare equal however their closures differ, so a captured
+ * parameter that changes across tunes would never be re-applied.
+ */
 fun <LP : ViewGroup.LayoutParams> Modifier.thenUnitLayoutAttribute(key: Any, reuseSupported: Boolean = true, applier: LP.(View) -> Unit): Modifier {
     return this.then(
         LayoutAttribute(key, object : LayoutAttributeApplier<LP, Unit, View> {
             override fun apply(target: LP, value: Unit, view: View) {
                 applier(target, view)
             }
-        }, Unit)
+        }, Unit, reuseSupported)
     )
 }
 

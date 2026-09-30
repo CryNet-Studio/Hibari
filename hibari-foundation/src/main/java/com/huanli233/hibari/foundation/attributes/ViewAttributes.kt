@@ -4,6 +4,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.ViewCompat
 import com.huanli233.hibari.ui.Modifier
+import com.huanli233.hibari.ui.thenLayoutAttribute
 import com.huanli233.hibari.ui.thenUnitLayoutAttribute
 import com.huanli233.hibari.ui.thenViewAttribute
 import com.huanli233.hibari.ui.uniqueKey
@@ -31,20 +32,27 @@ fun Modifier.matchParentSize(): Modifier {
         height = ViewGroup.LayoutParams.MATCH_PARENT
     }
 }
+/**
+ * The size arrives as the attribute value rather than inside the applier closure: a unit-valued
+ * attribute compares equal to its own successor, so a dynamic `width` captured by the closure would
+ * be diffed as unchanged and the layout params would freeze at the first value ever applied.
+ */
 fun Modifier.width(width: Dp): Modifier {
-    return this.thenUnitLayoutAttribute<ViewGroup.LayoutParams>(uniqueKey) {
-        this.width = width.toPx(it)
+    return this.thenLayoutAttribute<ViewGroup.LayoutParams, Dp>(uniqueKey, width) { dp, view ->
+        this.width = dp.toPx(view)
     }
 }
+
 fun Modifier.height(height: Dp): Modifier {
-    return this.thenUnitLayoutAttribute<ViewGroup.LayoutParams>(uniqueKey) {
-        this.height = height.toPx(it)
+    return this.thenLayoutAttribute<ViewGroup.LayoutParams, Dp>(uniqueKey, height) { dp, view ->
+        this.height = dp.toPx(view)
     }
 }
+
 fun Modifier.size(size: DpSize): Modifier {
-    return this.thenUnitLayoutAttribute<ViewGroup.LayoutParams>(uniqueKey) {
-        this.width = size.width.toPx(it)
-        this.height = size.height.toPx(it)
+    return this.thenLayoutAttribute<ViewGroup.LayoutParams, DpSize>(uniqueKey, size) { dpSize, view ->
+        this.width = dpSize.width.toPx(view)
+        this.height = dpSize.height.toPx(view)
     }
 }
 
