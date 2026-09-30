@@ -3,91 +3,102 @@ package com.huanli233.hibari.runtime
 class Walker {
 
     /**
-     * How many times each group key has been entered at one level. The compiler hands every call site
-     * a constant key, so a loop body reports the same key once per iteration and the siblings have to
-     * be told apart here — otherwise every iteration shares one `remember` slot and one node key.
+     * One position of the walk, remembered for the life of the walker.
+     *
+     * A position is reached by the same route in every round, so its path string is built the first
+     * time it is asked for and handed out from then on: a round that touches four hundred slots builds
+     * no string at all, and the string stays the same object, so the slot maps keep the hash its first
+     * round paid for instead of re-hashing a fresh copy of the same path every round.
      */
-    private class Level {
-        private var keys = IntArray(4)
-        private var counts = IntArray(4)
-        private var size = 0
+    private class Node(
+        val parent: Node?,
+        val key: Int,
+        val occurrence: Int
+    ) {
+        /** Built on the first ask, because a position that is never read should not name itself. */
+        var path: String? = null
 
-        fun reset() {
-            size = 0
-        }
+        /** The positions taken directly under this one, by group key. Usually only a handful. */
+        val children = ArrayList<Child>()
 
-        /** Records one entry of [key] and returns which occurrence of it this was. */
-        fun enter(key: Int): Int {
-            for (index in 0 until size) {
-                if (keys[index] == key) return ++counts[index]
-            }
-            if (size == keys.size) {
-                keys = keys.copyOf(size * 2)
-                counts = counts.copyOf(size * 2)
-            }
-            keys[size] = key
-            counts[size] = 1
-            size++
-            return 1
-        }
+        /** Stamped when this node is entered, which is how its siblings start counting again. */
+        var epoch = 0L
     }
 
-    private var keys = IntArray(8)
-    private var occurrences = IntArray(8)
-    private var depth = 0
+    /** Every sibling a group key has produced under one position, and which number is next. */
+    private class Child(val key: Int) {
+        val nodes = ArrayList<Node>()
+        var epoch = 0L
+        var count = 0
+    }
 
-    /** One [Level] per depth, allocated up to the deepest walk ever taken and reused from there. */
-    private val levels = ArrayList<Level>()
+    private val root = Node(parent = null, key = 0, occurrence = 0).apply { path = "" }
+    private var cursor = root
 
     /**
-     * The joined path is the slot key for every `remember` and the node key for every emitted node,
-     * so it is asked several times per position and cached until the walk actually moves.
+     * Increases with every entry, so an out-of-date sibling count is recognised without walking the
+     * remembered positions to clear them. A [Long] because a session that wraps an [Int] here would
+     * meet an old stamp again and keep counting the previous round's siblings into the new one.
      */
-    private var cachedPath: String? = null
+    private var epoch = 0L
 
-    fun path(): String {
-        cachedPath?.let { return it }
-
-        val builder = StringBuilder(depth * 4)
-        for (index in 0 until depth) {
-            if (index > 0) builder.append('-')
-            builder.append(keys[index])
-            if (occurrences[index] > 1) {
-                builder.append('#').append(occurrences[index])
-            }
-        }
-        return builder.toString().also { cachedPath = it }
-    }
+    /**
+     * The joined path is the slot key for every `remember` and the node key for every emitted node, so
+     * it is asked several times per position.
+     */
+    fun path(): String = cursor.path ?: buildPath(cursor)
 
     fun start(endKey: Int) {
-        while (levels.size <= depth) levels.add(Level())
-        val occurrence = levels[depth].enter(endKey)
-
-        // The group being entered has not emitted children yet, and this level may still be holding
-        // the counts of whichever sibling occupied this depth last.
-        levels.getOrNull(depth + 1)?.reset()
-
-        if (depth == keys.size) {
-            keys = keys.copyOf(depth * 2)
-            occurrences = occurrences.copyOf(depth * 2)
+        val parent = cursor
+        val child = childFor(parent, endKey)
+        if (child.epoch != parent.epoch) {
+            // The position above was entered afresh - a new round, or the next turn of the loop that
+            // holds it - so this key's siblings start counting again.
+            child.epoch = parent.epoch
+            child.count = 0
         }
-        keys[depth] = endKey
-        occurrences[depth] = occurrence
-        depth++
-        cachedPath = null
+        child.count++
+
+        val occurrence = child.count
+        val next = child.nodes.getOrNull(occurrence - 1)
+            ?: Node(parent, endKey, occurrence).also { child.nodes.add(it) }
+
+        cursor = next
+        next.epoch = ++epoch
     }
 
     fun end() {
-        if (depth == 0) {
+        val parent = cursor.parent
+        if (parent == null) {
             hibariRuntimeError("end() without a matching start(): the group calls are unbalanced.")
         }
-        depth--
-        cachedPath = null
+        cursor = parent
     }
 
     fun clear() {
-        depth = 0
-        for (level in levels) level.reset()
-        cachedPath = null
+        cursor = root
+        root.epoch = ++epoch
+    }
+
+    private fun buildPath(node: Node): String {
+        val parent = node.parent
+        val built = if (parent == null) {
+            ""
+        } else {
+            val segment = if (node.occurrence > 1) "${node.key}#${node.occurrence}" else "${node.key}"
+            val prefix = buildPath(parent)
+            if (prefix.isEmpty()) segment else "$prefix-$segment"
+        }
+        node.path = built
+        return built
+    }
+
+    private fun childFor(parent: Node, key: Int): Child {
+        val children = parent.children
+        for (index in children.indices) {
+            val child = children[index]
+            if (child.key == key) return child
+        }
+        return Child(key).also { children.add(it) }
     }
 }

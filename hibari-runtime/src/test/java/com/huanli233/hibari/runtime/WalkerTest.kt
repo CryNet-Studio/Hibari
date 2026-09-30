@@ -2,6 +2,8 @@ package com.huanli233.hibari.runtime
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 /**
@@ -105,5 +107,61 @@ class WalkerTest {
         walker.end()
         walker.start(13)
         assertEquals("11-13", walker.path())
+    }
+
+    /**
+     * The point of remembering a position instead of naming it again: the slot maps key on this string,
+     * so a stable one is a stable hash and a round that touches a thousand slots builds no string.
+     */
+    @Test
+    fun `a position hands out the same string instance across rounds`() {
+        val walker = Walker()
+        walker.start(5)
+        walker.start(9)
+        val firstRound = walker.path()
+        walker.end()
+        walker.end()
+
+        walker.clear()
+        walker.start(5)
+        walker.start(9)
+
+        assertSame(firstRound, walker.path())
+    }
+
+    @Test
+    fun `a sibling count does not survive the position above it being entered again`() {
+        val walker = Walker()
+
+        // Two turns of a loop that holds the whole subtree: the second turn's children are new
+        // siblings, not the first turn's counted on.
+        walker.start(1)
+        walker.start(2)
+        walker.start(3)
+        assertEquals("1-2-3", walker.path())
+        walker.end()
+        walker.start(3)
+        assertEquals("1-2-3#2", walker.path())
+        walker.end()
+        walker.end()
+        walker.end()
+
+        walker.start(1)
+        walker.start(2)
+        assertEquals("1#2-2", walker.path())
+        walker.start(3)
+        assertEquals("1#2-2-3", walker.path())
+    }
+
+    @Test
+    fun `ending past the root is an error and not a silent pop`() {
+        val walker = Walker()
+        walker.start(4)
+
+        walker.end()
+
+        assertThrows(HibariRuntimeError::class.java) { walker.end() }
+        // The walk is still where the balanced calls left it, so the next round starts clean.
+        assertEquals("", walker.path())
     }
 }

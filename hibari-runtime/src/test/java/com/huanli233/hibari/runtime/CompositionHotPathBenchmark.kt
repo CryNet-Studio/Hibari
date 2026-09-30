@@ -11,9 +11,13 @@ import org.junit.Test
 
 /**
  * The runtime pieces a round actually pays for, measured at a scale a real host reaches, so the
- * optimising arguments are numbers rather than my reading of the code. Each case prints microseconds
- * per round and asserts only a loose ceiling: these are here to catch an order-of-magnitude
- * regression, not to win a beauty contest against the JIT.
+ * optimising arguments are numbers rather than my reading of the code.
+ *
+ * Two things make a number here worth acting on. The shapes are the ones production has: a group key
+ * comes out of a seeded counter, so a real slot path is three ten-digit numbers joined and a round
+ * takes hundreds of them. And each case is timed over several windows with the best kept, because one
+ * window on one JVM run moved by half either way - enough to "measure" any change I had wanted to
+ * believe in.
  */
 class CompositionHotPathBenchmark {
 
@@ -21,14 +25,24 @@ class CompositionHotPathBenchmark {
         override fun apply(target: View, value: Any) = Unit
     }
 
+    private val outerKeys = IntArray(8) { 1_770_000_000 + it }
+    private val middleKeys = IntArray(5) { 1_770_100_000 + it }
+    private val leafKeys = IntArray(20) { 1_770_200_000 + it }
+
+    /** µs per round, best of three windows, printed so the number outlives the assertion. */
     private fun measure(label: String, rounds: Int, ceilingMicros: Long, body: () -> Unit): Long {
-        repeat(rounds / 5 + 1) { body() }
-        val beganAt = System.nanoTime()
-        repeat(rounds) { body() }
-        val micros = (System.nanoTime() - beganAt) / rounds / 1000
-        println("HibariBench  $label: ${micros}us per round over $rounds rounds")
-        assertTrue("$label took ${micros}us per round", micros < ceilingMicros)
-        return micros
+        repeat(rounds / 2 + 1) { body() }
+
+        var best = Long.MAX_VALUE
+        repeat(3) {
+            val beganAt = System.nanoTime()
+            repeat(rounds) { body() }
+            val micros = (System.nanoTime() - beganAt) / rounds / 1000
+            if (micros < best) best = micros
+        }
+        println("HibariBench  $label: ${best}us per round over $rounds rounds")
+        assertTrue("$label took ${best}us per round", best < ceilingMicros)
+        return best
     }
 
     private fun leaf(key: String, value: Any) = Node(
@@ -42,19 +56,59 @@ class CompositionHotPathBenchmark {
     @Test
     fun `walker path bookkeeping`() {
         val walker = Walker()
-        val keys = IntArray(40) { it }
 
         measure("walker 40 groups x depth 3", 5_000, ceilingMicros = 400) {
             walker.clear()
-            for (key in keys) {
-                walker.start(key)
-                walker.start(key + 1)
-                walker.start(key + 2)
+            for (index in 0 until 40) {
+                walker.start(outerKeys[index and 7])
+                walker.start(middleKeys[index % 5])
+                walker.start(leafKeys[index % 20])
                 walker.path()
                 walker.end()
                 walker.end()
                 walker.end()
             }
+        }
+    }
+
+    /**
+     * What a round really does with a path: take it, then use it as the key of a slot lookup, at the
+     * same four hundred positions, over and over. The walk by itself is cheap; what a round pays is a
+     * string per position and the hash of a string the slot maps have never seen.
+     */
+    @Test
+    fun `slot path use over repeated rounds`() {
+        val walker = Walker()
+        val memory = HashMap<String, Any?>()
+        val touched = HashSet<String>()
+        val slotValue = Any()
+
+        fun walk() {
+            walker.clear()
+            for (outer in outerKeys) {
+                walker.start(outer)
+                for (middle in middleKeys) {
+                    walker.start(middle)
+                    for (index in 0 until 10) {
+                        walker.start(leafKeys[index])
+                        val path = walker.path()
+                        touched.add(path)
+                        memory[path] = slotValue
+                        walker.end()
+                    }
+                    walker.end()
+                }
+                walker.end()
+            }
+            touched.clear()
+        }
+
+        // Two rounds fill the maps, so every measured round pays lookups rather than insertions.
+        walk()
+        walk()
+
+        measure("400 deep slot paths walked and looked up", 2_000, ceilingMicros = 800) {
+            walk()
         }
     }
 
@@ -100,16 +154,18 @@ class CompositionHotPathBenchmark {
         val owned = HashMap<String, Any?>()
         val touched = HashSet<String>()
         val scratch = ArrayList<String>()
-        for (index in 0 until 1000) {
-            val path = "7-9-$index"
-            val value = Pair(arrayOf<Any?>(), index)
+        val paths = (0 until 1000).map {
+            "${outerKeys[it and 7]}-${middleKeys[it % 5]}-${leafKeys[it % 20]}#$it"
+        }
+        for (path in paths) {
+            val value = Pair(arrayOf<Any?>(), path)
             memory[path] = value
             owned[path] = value
         }
-        // Built once, outside the measured body: interpolating a thousand paths per round measures
-        // the string builder, not the pruning pass.
-        val touchedPaths = (0 until 900).map { "7-9-$it" }
-        val stalePaths = (900 until 1000).map { "7-9-$it" }
+        // Built once, outside the measured body: building them per round would measure the string
+        // builder instead of the pruning pass.
+        val touchedPaths = paths.take(900)
+        val stalePaths = paths.drop(900)
 
         measure("prune 100 of 1000 slots", 500, ceilingMicros = 400) {
             for (path in touchedPaths) touched.add(path)
