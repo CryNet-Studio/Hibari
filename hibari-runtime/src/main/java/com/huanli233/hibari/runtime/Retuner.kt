@@ -24,6 +24,11 @@ class Retuner(
      * in one frame queued five nodes. Membership lives here, and drains with the node.
      */
     private val queued = Collections.newSetFromMap(ConcurrentHashMap<Tunation, Boolean>())
+    /**
+     * Confined to the main thread, so it needs no volatile: the only way in is [scheduleRetune], and
+     * the snapshot apply observer that can fire on a writing thread hops to the main thread before it
+     * gets here (see `SnapshotManager.invalidateNow`).
+     */
     private var isRunning = false
 
     fun scheduleRetune(session: Tunation) {

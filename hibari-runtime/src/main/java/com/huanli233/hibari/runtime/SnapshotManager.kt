@@ -1,5 +1,7 @@
 package com.huanli233.hibari.runtime
 
+import android.os.Handler
+import android.os.Looper
 import com.huanli233.hibari.runtime.snapshots.Snapshot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -14,26 +16,45 @@ object SnapshotManager {
 
     val tuneSnapshots = mutableSetOf<Snapshot>()
 
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     init {
         GlobalSnapshotManager.ensureStarted()
         Snapshot.registerApplyObserver { stateObjects, snapshot ->
             if (snapshot !in tuneSnapshots) {
-                val tunationsToInvalidate = mutableSetOf<Tunation>()
-                stateObjects.forEach { stateObject ->
-                    stateToTunationsMap[stateObject]?.let { observers ->
-                        tunationsToInvalidate.addAll(observers)
-                        observers.forEach { it.markChanged(stateObject) }
-                    }
-                }
-
-                if (tunationsToInvalidate.isNotEmpty()) {
-                    tunationsToInvalidate.forEach {
-                        GlobalRetuner.retuner.scheduleRetune(it)
-                    }
+                // Apply observers run on whichever thread applied the snapshot, while everything that
+                // touches these maps otherwise runs on the main thread, where tuning happens. A write
+                // that applied its own snapshot off-thread would otherwise reshape both dependency
+                // maps while a tune was reading them, and `markChanged` would land in a set the next
+                // tune is walking.
+                if (Looper.myLooper() == Looper.getMainLooper()) {
+                    invalidateNow(stateObjects)
+                } else {
+                    // The notified set is a view over the snapshot's own modified collection, which is
+                    // only guaranteed to stay put for the duration of the observer call, so it is
+                    // copied rather than captured.
+                    val changed = stateObjects.toMutableSet()
+                    mainHandler.post { invalidateNow(changed) }
                 }
             }
         }
 
+    }
+
+    private fun invalidateNow(stateObjects: Set<Any>) {
+        val tunationsToInvalidate = mutableSetOf<Tunation>()
+        stateObjects.forEach { stateObject ->
+            stateToTunationsMap[stateObject]?.let { observers ->
+                tunationsToInvalidate.addAll(observers)
+                observers.forEach { it.markChanged(stateObject) }
+            }
+        }
+
+        if (tunationsToInvalidate.isNotEmpty()) {
+            tunationsToInvalidate.forEach {
+                GlobalRetuner.retuner.scheduleRetune(it)
+            }
+        }
     }
 
 
