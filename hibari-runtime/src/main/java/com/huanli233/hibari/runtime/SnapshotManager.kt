@@ -59,8 +59,12 @@ object SnapshotManager {
 
 
     fun recordRead(tunation: Tunation, stateObject: Any) {
+        // The tunation's own set is the registration record, so a state read twice in one round - the
+        // common case for a state used across a loop of items - costs one failed add instead of two
+        // map lookups and two set adds. [clearDependencies] is the only other writer here and it drops
+        // both halves of a pair, so a pair either lives in both maps or in neither.
+        if (!tunationToStatesMap.getOrPut(tunation) { mutableSetOf() }.add(stateObject)) return
         stateToTunationsMap.getOrPut(stateObject) { mutableSetOf() }.add(tunation)
-        tunationToStatesMap.getOrPut(tunation) { mutableSetOf() }.add(stateObject)
     }
 
     fun clearDependencies(tunation: Tunation) {

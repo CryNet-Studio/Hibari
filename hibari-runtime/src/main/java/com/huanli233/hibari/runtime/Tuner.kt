@@ -168,7 +168,14 @@ open class Tuner(
      */
     val coroutineScope = CoroutineScope(Dispatchers.Main + Job())
 
-    private val nodeStack = ArrayDeque<MutableList<Node>>()
+    /**
+     * One slot per level being built, the composition's root at index 0 and the level being emitted
+     * last. A slot stays empty until that level is handed its first child: a leaf then costs no list
+     * at all, and a level with two children costs a list sized for two instead of the ten a fresh
+     * ArrayList fills on its first add.
+     */
+    private val nodeStack = ArrayList<MutableList<Node>?>()
+
     val rootNodes: List<Node>
         get() = nodeStack.firstOrNull() ?: emptyList()
 
@@ -225,7 +232,11 @@ open class Tuner(
         } else {
             null
         }
-        nodeStack.addFirst(mutableListOf())
+        // Drained before use rather than assumed empty: a round that threw left its root slot on the
+        // stack, and every round after it would have ended with `size != 1` and reported an imbalance
+        // instead of tuning.
+        nodeStack.clear()
+        nodeStack.add(null)
     }
 
     fun endComposition(): List<Node> {
@@ -242,7 +253,7 @@ open class Tuner(
             census = null
         }
         roundChangedStates = emptySet()
-        return nodeStack.removeFirst()
+        return nodeStack.removeAt(0) ?: emptyList()
     }
 
     fun rememberedValue(): Any? {
@@ -322,11 +333,18 @@ open class Tuner(
         node.key = path
         TuneStats.markNode(path)
         HibariLog.d(TAG) { "emitNode() at path '${node.key}'. Node: $node" }
-        nodeStack.addFirst(mutableListOf())
+        nodeStack.add(null)
         runTunable(content)
-        val children = nodeStack.removeFirst()
-        node.children = children
-        nodeStack.firstOrNull()?.add(node) ?: hibariRuntimeError("Cannot emit node outside of a composition.")
+        val children = nodeStack.removeAt(nodeStack.lastIndex)
+        node.children = children ?: emptyList()
+        val parentIndex = nodeStack.lastIndex
+        if (parentIndex < 0) hibariRuntimeError("Cannot emit node outside of a composition.")
+        val siblings = nodeStack[parentIndex]
+        if (siblings == null) {
+            nodeStack[parentIndex] = ArrayList<Node>(2).apply { add(node) }
+        } else {
+            siblings.add(node)
+        }
         return node
     }
 }

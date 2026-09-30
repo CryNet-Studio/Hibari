@@ -473,7 +473,20 @@ open class ViewMeasurable(
     val node: Node?
 ) : Measurable {
 
-    private val measurementCache = mutableMapOf<Constraints, Placeable>()
+    /**
+     * The last constraints this measurable was asked for and the placeable built for them. A measure
+     * pass asks for the same child twice (wrap first, then the space left), and a fresh measurable
+     * comes with every patched subtree, so this used to be one [LinkedHashMap] per child per round:
+     * two objects each, cleared again at the start of every pass.
+     *
+     * A second question with different constraints re-measures instead of finding an older entry,
+     * which costs nothing on this path - [BasePlaceable] hands the work to [View.measure], and the
+     * view keeps its own measured-with cache - and it still cannot answer with a stale size, because
+     * the whole slot is dropped at the start of every pass.
+     */
+    private var cachedConstraints: Constraints? = null
+    private var cachedPlaceable: Placeable? = null
+
     private val chainedMeasure: (Constraints) -> Placeable
 
     override val context: Context
@@ -508,13 +521,16 @@ open class ViewMeasurable(
     }
 
     override fun measure(constraints: Constraints): Placeable {
-        return measurementCache.getOrPut(constraints) {
-            chainedMeasure(constraints)
+        cachedPlaceable?.let { if (cachedConstraints == constraints) return it }
+        return chainedMeasure(constraints).also {
+            cachedConstraints = constraints
+            cachedPlaceable = it
         }
     }
 
     fun invalidateMeasureCache() {
-        measurementCache.clear()
+        cachedConstraints = null
+        cachedPlaceable = null
     }
 }
 
