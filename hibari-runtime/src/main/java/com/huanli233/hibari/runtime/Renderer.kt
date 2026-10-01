@@ -240,7 +240,13 @@ class Renderer(
         return created
     }
 
-    private inner class ViewConstructor(
+    /**
+     * Not an `inner` class: instances are cached in the static [viewConstructors] table, so an outer
+     * reference here would pin this renderer - and with it its `parent` view group, the whole tree
+     * hanging off that group and the context behind it - for the life of the process, one tree per
+     * distinct view class the app ever builds.
+     */
+    private class ViewConstructor(
         private val instance: Constructor<*>,
         private val parameterCount: Int
     ) {

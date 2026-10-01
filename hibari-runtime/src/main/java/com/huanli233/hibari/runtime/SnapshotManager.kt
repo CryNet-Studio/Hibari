@@ -14,6 +14,15 @@ object SnapshotManager {
     private val stateToTunationsMap = mutableMapOf<Any, MutableSet<Tunation>>()
     private val tunationToStatesMap = mutableMapOf<Tunation, MutableSet<Any>>()
 
+    /**
+     * Never written, so the guard in [init] never fires - and adding the tuning snapshot to it would
+     * not be the whole fix. The check skips the entire notification for one snapshot, not just the
+     * self-invalidation: a state written by session A during its own tune also has to reach session B,
+     * which reads the same object, and a live set here would silently drop that. What a session writes
+     * to a state it also read is answered today by one extra tune of the writer, which is wasteful but
+     * converges; the cheaper answer is to exclude only the writing tunation from [invalidateNow], and
+     * that needs the snapshot mapped back to the tunation that is holding it.
+     */
     val tuneSnapshots = mutableSetOf<Snapshot>()
 
     private val mainHandler = Handler(Looper.getMainLooper())

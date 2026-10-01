@@ -296,6 +296,11 @@ open class Tuner(
         // tune would have read the value that dead tune put there. They are always empty by the time
         // a tune starts, so draining them costs nothing on the normal path.
         if (ownsLocalValueStacks) localValueStacks.values.forEach { it.clear() }
+        // A round that threw also left the paths it had already marked as touched behind, and the next
+        // round's sweep reads that set as this round's record: the slot belonging to whatever the crash
+        // removed would look touched, keep its value, and never be forgotten. Empty on the normal path,
+        // where the sweep at the end of the round drains it.
+        touchedSlots.clear()
         SnapshotManager.clearDependencies(tunation)
         val snapshot = Snapshot.takeMutableSnapshot(
             readObserver = {
