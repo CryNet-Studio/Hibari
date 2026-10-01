@@ -1,0 +1,3 @@
+[submodule "hibari-wear"]
+	path = hibari-wear
+	url = git@github.com:YNotBili/WearHibari.git
