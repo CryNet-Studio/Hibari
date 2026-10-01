@@ -155,5 +155,5 @@ private fun FirNamedFunctionSymbol.jvmNameAsString(session: FirSession): String 
         ?: name.asString()
 
 private val FirFunctionSymbol<*>.explicitParameterTypes: List<ConeKotlinType>
-    get() = listOfNotNull(receiverParameter?.symbol?.resolvedType) +
+    get() = listOfNotNull(receiverParameterSymbol?.resolvedType) +
             valueParameterSymbols.map { it.resolvedReturnType }

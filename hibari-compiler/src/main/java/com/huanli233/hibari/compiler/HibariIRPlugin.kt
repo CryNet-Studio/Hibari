@@ -18,7 +18,7 @@ class HibariIRPlugin : KotlinCompilerPluginSupportPlugin {
     override fun getPluginArtifact() = SubpluginArtifact(
         "com.huanli233.hibari",
         "hibari-compiler",
-        "1.0.0"
+        "1.0.0-beta01"
     )
 
     override fun isApplicable(kotlinCompilation: KotlinCompilation<*>): Boolean = true

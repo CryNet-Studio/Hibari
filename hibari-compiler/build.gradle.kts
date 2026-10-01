@@ -26,5 +26,13 @@ dependencies {
 }
 val compileKotlin: KotlinCompile by tasks
 compileKotlin.compilerOptions {
-    freeCompilerArgs.set(listOf("-Xnon-local-break-continue", "-Xcontext-parameters"))
+    // Kotlin 2.2 起编译器内部 API（IR/FIR 扩展点）标记为 DeprecatedForRemovalCompilerApi，
+    // 需要 opt-in 才能使用；待上游提供稳定 API 后移除。
+    freeCompilerArgs.set(
+        listOf(
+            "-Xnon-local-break-continue",
+            "-Xcontext-parameters",
+            "-opt-in=org.jetbrains.kotlin.DeprecatedForRemovalCompilerApi"
+        )
+    )
 }
