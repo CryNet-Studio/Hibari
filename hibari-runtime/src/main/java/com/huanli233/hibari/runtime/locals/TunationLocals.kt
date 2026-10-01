@@ -16,5 +16,5 @@ val LocalDensity = staticTunationLocalOf<Density> {
     error("TunationLocal LocalDensity not present")
 }
 val LocalLayoutDirection = staticTunationLocalOf<LayoutDirection> {
-    error("TunationLocal LocalDensity not present")
+    error("TunationLocal LocalLayoutDirection not present")
 }

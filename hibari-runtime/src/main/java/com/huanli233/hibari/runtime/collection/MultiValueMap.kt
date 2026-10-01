@@ -131,7 +131,10 @@ internal value class MultiValueMap<K : Any, V : Any>(
                 is MutableObjectList<*> -> {
                     (it as MutableObjectList<V>).removeIf(condition)
                     if (it.isEmpty()) map.remove(key)
-                    if (it.size == 0) map[key] = it.first()
+                    // One left, and it is the entry: `removeLast`/`removeFirst` collapse a list down to
+                    // its last value for the same reason, and a `size == 0` here took `first()` from an
+                    // emptied list and put it back under the key the line above had just removed.
+                    if (it.size == 1) map[key] = it.first()
                 }
                 else -> if (condition(it as V)) map.remove(key)
             }
