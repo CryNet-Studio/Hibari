@@ -1,19 +1,28 @@
 package com.huanli233.hibari.wearsample
 
+import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Bundle
+import android.util.AttributeSet
 import android.view.Gravity
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import com.huanli233.hibari.foundation.Box
 import com.huanli233.hibari.foundation.Column
+import com.huanli233.hibari.foundation.Node
 import com.huanli233.hibari.foundation.Row
 import com.huanli233.hibari.foundation.attributes.matchParentSize
 import com.huanli233.hibari.foundation.attributes.padding
 import com.huanli233.hibari.foundation.attributes.size
 import com.huanli233.hibari.runtime.HibariView
+import com.huanli233.hibari.runtime.TunationLocalProvider
 import com.huanli233.hibari.runtime.currentContext
 import com.huanli233.hibari.runtime.effects.rememberCoroutineScope
 import com.huanli233.hibari.runtime.getValue
+import com.huanli233.hibari.runtime.locals.LocalLayoutDirection
 import com.huanli233.hibari.runtime.mutableStateOf
 import com.huanli233.hibari.runtime.remember
 import com.huanli233.hibari.runtime.setValue
@@ -21,28 +30,53 @@ import com.huanli233.hibari.ui.Modifier
 import com.huanli233.hibari.ui.geometry.CircleShape
 import com.huanli233.hibari.ui.graphics.Color
 import com.huanli233.hibari.ui.layout.Alignment
+import com.huanli233.hibari.ui.layout.Arrangement
 import com.huanli233.hibari.ui.text.TextAlign
+import com.huanli233.hibari.ui.thenViewAttribute
+import com.huanli233.hibari.ui.uniqueKey
 import com.huanli233.hibari.ui.unit.DpSize
+import com.huanli233.hibari.ui.unit.LayoutDirection
 import com.huanli233.hibari.ui.unit.PaddingValues
 import com.huanli233.hibari.ui.unit.dp
 import com.huanli233.hibari.ui.unit.sp
 import com.huanli233.hibari.ui.unit.toPx
+import com.huanli233.hibari.ui.viewClass
+import com.huanli233.hibari.wear.ActiveFocusListener
+import com.huanli233.hibari.wear.AlertDialog
+import com.huanli233.hibari.wear.AlertDialogContent
+import com.huanli233.hibari.wear.AlertDialogDefaults
 import com.huanli233.hibari.wear.AmbientMode
 import com.huanli233.hibari.wear.AmbientModeHost
 import com.huanli233.hibari.wear.AnimatedPage
 import com.huanli233.hibari.wear.AnimatedText
 import com.huanli233.hibari.wear.AppCard
+import com.huanli233.hibari.wear.AppCardContent
 import com.huanli233.hibari.wear.ArcProgressIndicator
 import com.huanli233.hibari.wear.BorderStroke
 import com.huanli233.hibari.wear.Button
+import com.huanli233.hibari.wear.ButtonContent
 import com.huanli233.hibari.wear.ButtonDefaults
 import com.huanli233.hibari.wear.ButtonGroup
 import com.huanli233.hibari.wear.Card
 import com.huanli233.hibari.wear.CardDefaults
+import com.huanli233.hibari.wear.CheckboxButton
 import com.huanli233.hibari.wear.ChildButton
+import com.huanli233.hibari.wear.CircularProgressIndicator
+import com.huanli233.hibari.wear.CircularProgressIndicatorDefaults
 import com.huanli233.hibari.wear.CompactButton
+import com.huanli233.hibari.wear.CompactButtonContent
 import com.huanli233.hibari.wear.CompactButtonDefaults
+import com.huanli233.hibari.wear.ConfirmationDialog
+import com.huanli233.hibari.wear.ConfirmationDialogContent
+import com.huanli233.hibari.wear.ConfirmationDialogDefaults
+import com.huanli233.hibari.wear.CurvedAlignment
+import com.huanli233.hibari.wear.CurvedBox
+import com.huanli233.hibari.wear.CurvedColumn
+import com.huanli233.hibari.wear.CurvedDirection
+import com.huanli233.hibari.wear.CurvedLayout
 import com.huanli233.hibari.wear.CurvedRow
+import com.huanli233.hibari.wear.CurvedText
+import com.huanli233.hibari.wear.CustomTouchSlopProvider
 import com.huanli233.hibari.wear.DatePicker
 import com.huanli233.hibari.wear.DatePickerType
 import com.huanli233.hibari.wear.Dialog
@@ -50,24 +84,35 @@ import com.huanli233.hibari.wear.DialogProperties
 import com.huanli233.hibari.wear.EdgeButton
 import com.huanli233.hibari.wear.EdgeButtonDefaults
 import com.huanli233.hibari.wear.EdgeButtonSize
+import com.huanli233.hibari.wear.FailureConfirmationDialog
+import com.huanli233.hibari.wear.FailureConfirmationDialogContent
 import com.huanli233.hibari.wear.FilledIconButton
 import com.huanli233.hibari.wear.FilledTonalButton
 import com.huanli233.hibari.wear.FilledTonalIconButton
+import com.huanli233.hibari.wear.FixedSizeIcon
 import com.huanli233.hibari.wear.FontScaleIndependent
 import com.huanli233.hibari.wear.FadingExpandingLabel
 import com.huanli233.hibari.wear.HierarchicalFocusRequester
 import com.huanli233.hibari.wear.HorizontalPageIndicator
 import com.huanli233.hibari.wear.HorizontalPager
 import com.huanli233.hibari.wear.HorizontalPagerScaffold
+import com.huanli233.hibari.wear.Icon
 import com.huanli233.hibari.wear.IconButton
 import com.huanli233.hibari.wear.IconButtonDefaults
+import com.huanli233.hibari.wear.IconDefaults
 import com.huanli233.hibari.wear.IconToggleButton
 import com.huanli233.hibari.wear.IconToggleButtonDefaults
 import com.huanli233.hibari.wear.KeepScreenOn
 import com.huanli233.hibari.wear.LevelIndicator
+import com.huanli233.hibari.wear.LinearProgressIndicator
+import com.huanli233.hibari.wear.LinearProgressIndicatorDefaults
+import com.huanli233.hibari.wear.ListSubHeader
 import com.huanli233.hibari.wear.MaterialTheme
 import com.huanli233.hibari.wear.MinimumInteractiveComponentSize
 import com.huanli233.hibari.wear.MotionScheme
+import com.huanli233.hibari.wear.OpenOnPhoneDialog
+import com.huanli233.hibari.wear.OpenOnPhoneDialogContent
+import com.huanli233.hibari.wear.OpenOnPhoneDialogDefaults
 import com.huanli233.hibari.wear.OutlinedButton
 import com.huanli233.hibari.wear.OutlinedCard
 import com.huanli233.hibari.wear.OutlinedIconButton
@@ -75,42 +120,63 @@ import com.huanli233.hibari.wear.PagerScaffoldDefaults
 import com.huanli233.hibari.wear.Picker
 import com.huanli233.hibari.wear.PickerGroup
 import com.huanli233.hibari.wear.PrimaryActionButton
+import com.huanli233.hibari.wear.ProgressIndicatorDefaults
+import com.huanli233.hibari.wear.ProgressSpec
+import com.huanli233.hibari.wear.RadioButton
 import com.huanli233.hibari.wear.RevealDirection
 import com.huanli233.hibari.wear.RevealValue
 import com.huanli233.hibari.wear.ScreenScaffold
+import com.huanli233.hibari.wear.ScrollIndicator
 import com.huanli233.hibari.wear.SegmentedCircularProgressIndicator
 import com.huanli233.hibari.wear.ScrollInfoProvider
 import com.huanli233.hibari.wear.ScreenStage
 import com.huanli233.hibari.wear.SecondaryActionButton
 import com.huanli233.hibari.wear.Slider
+import com.huanli233.hibari.wear.SplitButtonGroup
+import com.huanli233.hibari.wear.SplitCheckboxButton
+import com.huanli233.hibari.wear.SplitRadioButton
+import com.huanli233.hibari.wear.SplitSwitchButton
 import com.huanli233.hibari.wear.Stepper
+import com.huanli233.hibari.wear.StepperLevelIndicator
+import com.huanli233.hibari.wear.SuccessConfirmationDialog
+import com.huanli233.hibari.wear.SuccessConfirmationDialogContent
 import com.huanli233.hibari.wear.Surface
 import com.huanli233.hibari.wear.SwipeToReveal
+import com.huanli233.hibari.wear.SwitchButton
 import com.huanli233.hibari.wear.Text
 import com.huanli233.hibari.wear.TextButton
 import com.huanli233.hibari.wear.TextButtonDefaults
+import com.huanli233.hibari.wear.TextSeparator
 import com.huanli233.hibari.wear.TextToggleButton
-import com.huanli233.hibari.wear.TextButton
 import com.huanli233.hibari.wear.TextToggleButtonDefaults
 import com.huanli233.hibari.wear.TimePicker
 import com.huanli233.hibari.wear.TimePickerSelection
 import com.huanli233.hibari.wear.TimePickerType
 import com.huanli233.hibari.wear.TitleCard
+import com.huanli233.hibari.wear.TitleCardContent
 import com.huanli233.hibari.wear.UndoActionButton
+import com.huanli233.hibari.wear.VerticalPageIndicator
 import com.huanli233.hibari.wear.VerticalPager
 import com.huanli233.hibari.wear.VerticalPagerScaffold
 import com.huanli233.hibari.wear.Vignette
 import com.huanli233.hibari.wear.VignettePosition
 import com.huanli233.hibari.wear.ambientMode
+import com.huanli233.hibari.wear.confirmationDialogCurvedText
 import com.huanli233.hibari.wear.currentTextStyle
+import com.huanli233.hibari.wear.currentTouchSlop
 import com.huanli233.hibari.wear.attributes.minimumInteractiveComponentSize
 import com.huanli233.hibari.wear.currentSpToPx
+import com.huanli233.hibari.wear.drawCircularProgressIndicator
 import com.huanli233.hibari.wear.fontScaleIndependentTextStyle
 import com.huanli233.hibari.wear.hierarchicalFocusGroup
 import com.huanli233.hibari.wear.hierarchicalFocusRequester
+import com.huanli233.hibari.wear.openOnPhoneDialogCurvedText
 import com.huanli233.hibari.wear.rememberActiveFocusRequester
 import com.huanli233.hibari.wear.lazy.ExpandableState
+import com.huanli233.hibari.wear.lazy.ListTransformParams
 import com.huanli233.hibari.wear.lazy.ScalingLazyColumn
+import com.huanli233.hibari.wear.lazy.ScalingLazyListState
+import com.huanli233.hibari.wear.lazy.TransformingLazyColumn
 import com.huanli233.hibari.wear.lazy.expandableItems
 import com.huanli233.hibari.wear.placeholder
 import com.huanli233.hibari.wear.rememberAnimatedTextFontRegistry
@@ -122,6 +188,8 @@ import com.huanli233.hibari.wear.requestFocusOnHierarchyActive
 import com.huanli233.hibari.wear.scrollAway
 import com.huanli233.hibari.wear.touchTargetAwareSize
 import com.huanli233.hibari.wear.touchExplorationState
+import com.huanli233.hibari.wear.view.CurvedAnchor
+import com.huanli233.hibari.wear.view.CurvedTextOverflow
 import java.time.LocalDate
 import java.time.LocalTime
 import kotlinx.coroutines.launch
@@ -202,6 +270,57 @@ class ApiSmokeActivity : AppCompatActivity() {
                 // AnimatedText keys its derived state on this lambda, so it is remembered: a fresh
                 // lambda identity per tune would rebuild that derived state on every retune.
                 val morphFraction: () -> Float = remember { { if (morphed.value) 1f else 0f } }
+                // Which of the full-dial forms is on screen. -1 is nothing; every other value is opened
+                // by the row with that name in the list below, and the auto-dismissing ones write -1 back
+                // through their own `onDismissRequest`. One int rather than fourteen booleans because
+                // these forms are mutually exclusive by nature — each is a surface over the whole dial —
+                // and because it makes the list of what is covered by a click readable in one place.
+                val overlayForm = remember { mutableStateOf(-1) }
+                // The `*Content` twins are not surfaces of their own: each roots at `matchParentSize()`,
+                // so they live in boxes the caller sizes, behind this toggle rather than always on
+                // screen. Flipping it inserts and removes rows, which is also the only way to see that
+                // the rows below are the Content layouts and not the dialogs.
+                val contentFormsShown = remember { mutableStateOf(false) }
+                // Written only by `ActiveFocusListener`, i.e. by the hierarchical focus coordinator when
+                // the active path enters or leaves this subtree — not by a click.
+                val focusEvents = remember { mutableStateOf(0) }
+                // Which of the three split-style selection controls currently owns its group.
+                val splitSelected = remember { mutableStateOf(0) }
+                // `Icon`'s `image: Any?` is whatever `Modifier.image` accepts — a resource id, a
+                // `Drawable`, a `Bitmap` or null (attributes/ImageAttributes.kt:18-27). This is the
+                // `Drawable` branch, and it is remembered on purpose: the attribute diffs on value
+                // identity, so a fresh instance per tune would re-set the image on every retune.
+                val swatch = remember { ColorDrawable(0xFF8AB4F8.toInt()) }
+                // The state the state-driven `ScrollIndicator` reads, and the model of the list it
+                // describes — the indicator has to be told the item count, because the state does not
+                // publish `totalItemsCount` (ScrollIndicator.kt:236).
+                val lazyListState = remember { ScalingLazyListState() }
+                val smokeRows = remember {
+                    listOf(
+                        "Row one", "Row two", "Row three",
+                        "Row four", "Row five", "Row six", "Row seven", "Row eight",
+                    )
+                }
+                // The names of the overlay forms, in the order `overlayForm` numbers them. Row N of the
+                // list below opens form N, so this list is also the index.
+                val overlayTitles = remember {
+                    listOf(
+                        "AlertDialog: confirm + dismiss",
+                        "AlertDialog: confirm + dismiss, transformationSpec",
+                        "AlertDialog: buttonless",
+                        "AlertDialog: buttonless, transformationSpec",
+                        "AlertDialog: edge button",
+                        "AlertDialog: edge button, transformationSpec",
+                        "ConfirmationDialog: curved text",
+                        "ConfirmationDialog: linear text",
+                        "SuccessConfirmationDialog",
+                        "FailureConfirmationDialog",
+                        "OpenOnPhoneDialog",
+                        "CurvedLayout",
+                        "CurvedBox",
+                        "CurvedColumn",
+                    )
+                }
 
                 MaterialTheme {
                     ScreenScaffold { contentPadding ->
@@ -235,7 +354,10 @@ class ApiSmokeActivity : AppCompatActivity() {
                                 LevelIndicator(value = sliderValue / 5f)
                             }
                             item {
-                                HorizontalPageIndicator(pageCount = 4, currentPage = page)
+                                // Upstream's own entry shape: the indicator takes the pager's state and
+                                // reads the live page and offset off it, so this follows the pager below
+                                // rather than an unrelated counter.
+                                HorizontalPageIndicator(pagerState = pagerState)
                             }
                             item {
                                 // TextButton sizes nothing of its own upstream, so the size and the
@@ -272,6 +394,121 @@ class ApiSmokeActivity : AppCompatActivity() {
                                         }
                                     }
                                 }
+                            }
+                            item {
+                                // The determinate ring at its defaults, which is the point: leaving
+                                // `strokeWidth` unset is what runs the 8/12 dp screen-size tier of
+                                // `CircularProgressIndicatorDefaults.largeStrokeWidth`
+                                // (ProgressIndicator.kt:373-374, upstream CircularProgressIndicator.kt:525-526)
+                                // and the gap that follows from it, `calculateRecommendedGapSize(stroke)`
+                                // = stroke / 3 (`:539-544`). The value rides the slider at the top of the
+                                // list: that one runs 0..6 (its `valueRange` default is
+                                // `0f..(steps + 1)` with `steps = 5`, Slider.kt:144), so the last two
+                                // steps push the quotient past 1 — which is what exercises the coercion
+                                // and, at exactly 1, the full-circle merge path.
+                                CircularProgressIndicator(
+                                    progress = sliderValue / 5f,
+                                    modifier = Modifier.size(DpSize(56.dp, 56.dp)),
+                                )
+                            }
+                            item {
+                                // The indeterminate overload, given no size on purpose: it takes no
+                                // `enabled` (upstream reads the enabled brushes straight,
+                                // CircularProgressIndicator.kt:214-221), strokes at
+                                // `IndeterminateStrokeWidth` (3 dp, `:552-553`), and with nothing
+                                // measuring it the view's own `onMeasure` supplies the diameter — 24 dp
+                                // while indeterminate (`WearCircularProgressView:146-156`), the counterpart
+                                // of upstream forcing `Modifier.size(IndeterminateCircularIndicatorDiameter)`
+                                // after the caller's modifier (`:202-203`, `:549-550`). The one asymmetry
+                                // is deliberate and already documented on that view: a caller that does
+                                // give a size wins here, because a View cannot overrule the MeasureSpec it
+                                // is handed, while upstream's late `.size(…)` always wins.
+                                CircularProgressIndicator()
+                            }
+                            item {
+                                // The linear bar at its default `StrokeWidthLarge` (12 dp,
+                                // LinearProgressIndicator.kt:197): the end dot (`DotRadius` 2 dp,
+                                // `DotMargin` 4 dp) inside `OuterHorizontalMargin` (2 dp) of padding is
+                                // what this renders. Upstream's canvas is `fillMaxWidth()` while a View
+                                // measures `wrap_content` to at most 64 px
+                                // (`WearLinearProgressView.getSuggestedMinimumWidth`), so the width is
+                                // given explicitly here rather than left to the parent.
+                                LinearProgressIndicator(
+                                    progress = sliderValue / 5f,
+                                    modifier = Modifier.size(DpSize(120.dp, 12.dp)),
+                                )
+                            }
+                            item {
+                                // The same bar in a right-to-left subtree. Upstream decides this once, in
+                                // the composition: `LocalLayoutDirection.current == LayoutDirection.Rtl`
+                                // (`LinearProgressIndicator.kt:135`) feeding
+                                // `.scale(scaleX = -1f …)` (`:143`), and the port mirrors that shape —
+                                // `linearProgressIsRtl()` (`ProgressIndicator.kt:216-217`) rides the same
+                                // `LocalLayoutDirection` and lands in `ProgressSpec.flipHorizontal`, which
+                                // is what flips the canvas (`WearLinearProgressView:108-110`). So the RTL
+                                // demo has to provide that local over the subtree rather than touch the
+                                // view: writing `View.layoutDirection` here would be read by nothing,
+                                // because the direction is resolved at tune time.
+                                // 0.9f is picked for the other half of the dot's behaviour: at 120 dp wide
+                                // and a 12 dp stroke the drawing area is 120 - 2·2 = 116 dp, so
+                                // progressPx = 0.9·(116 - 12) = 93.6 and the dot's distance to the line is
+                                // 110 - 2 - 93.6 - 12 = 2.4 dp, i.e. below the 4 dp `DotMargin` —
+                                // scaleFraction 0.6, a 1.2 dp dot at 60 % alpha (`:126-133`, upstream
+                                // `:246-250`). The slider above only ever hands 0.8 or 1.0, which straddle
+                                // that window, so this item is the only place the dot's shrink-and-fade
+                                // renders.
+                                TunationLocalProvider(
+                                    LocalLayoutDirection provides LayoutDirection.Rtl
+                                ) {
+                                    LinearProgressIndicator(
+                                        progress = 0.9f,
+                                        modifier = Modifier.size(DpSize(120.dp, 12.dp)),
+                                    )
+                                }
+                            }
+                            item {
+                                // The public, non-animating draw entry (`Canvas.drawCircularProgressIndicator`,
+                                // port of `DrawScope.drawCircularProgressIndicator`,
+                                // CircularProgressIndicator.kt:262-322). Upstream keeps it for a caller
+                                // that drives its own drawing, and nothing in this module calls it — so
+                                // this item is what puts it on a screen at all, through the caller-owned
+                                // view below.
+                                //
+                                // 1.05f is not a typo and not a headroom value: upstream's composable
+                                // feeds that function `coercedProgressWithGap(progress)` — `1f +
+                                // GapExtraProgress`, i.e. 1.05f — for a full circle
+                                // (`:402`, `:556-564`, `GapExtraProgress` `:611`), and only at that value
+                                // does the merge branch resolve `gapFraction` to 0 and close the ring
+                                // (ProgressIndicator.kt:285-299). A plain 1f renders a 1-degree break,
+                                // which is what upstream does too for a caller that never pushes past 1.
+                                val stroke = CircularProgressIndicatorDefaults.largeStrokeWidth
+                                Node(
+                                    modifier = Modifier
+                                        .size(DpSize(56.dp, 56.dp))
+                                        .viewClass(SmokeProgressRingView::class.java)
+                                        .thenViewAttribute<SmokeProgressRingView, ProgressSpec>(
+                                            uniqueKey,
+                                            ProgressSpec(
+                                                progress = 1.05f,
+                                                indeterminate = false,
+                                                enabled = true,
+                                                // Off, because the full-circle merge branch this item
+                                                // exists to render is gated on it
+                                                // (`ProgressIndicator.kt:285`).
+                                                allowProgressOverflow = false,
+                                                colors = ProgressIndicatorDefaults.colors(),
+                                                strokeWidth = stroke,
+                                                gapSize = CircularProgressIndicatorDefaults
+                                                    .calculateRecommendedGapSize(stroke),
+                                                startAngle = CircularProgressIndicatorDefaults.StartAngle,
+                                                endAngle = CircularProgressIndicatorDefaults.StartAngle,
+                                                // Circular only, and false upstream too: the circular
+                                                // indicator is not direction dependent
+                                                // (`ProgressIndicator.kt:115`, `:154`).
+                                                flipHorizontal = false,
+                                            ),
+                                        ) { spec = it },
+                                )
                             }
                             item {
                                 val ring = Modifier.size(DpSize(56.dp, 56.dp))
@@ -323,7 +560,7 @@ class ApiSmokeActivity : AppCompatActivity() {
                             // the shim, which a compile cannot see and a dial can — so this call site
                             // exists to be looked at. `userScrollEnabled` stays at its default true,
                             // which is upstream's advice for a read-only field a tap should open, and the
-                            // label is given `Gravity.TOP_CENTER` through the slot's own `BoxScope`
+                            // label is given `Gravity.TOP or Gravity.CENTER_HORIZONTAL` through the slot's own `BoxScope`
                             // because it is an overlay, not a row above the value.
                             item {
                                 Picker(
@@ -332,7 +569,7 @@ class ApiSmokeActivity : AppCompatActivity() {
                                     modifier = Modifier.size(DpSize(150.dp, 64.dp)),
                                     readOnly = true,
                                     readOnlyLabel = {
-                                        Text("Day", modifier = Modifier.gravity(Gravity.TOP_CENTER))
+                                        Text("Day", modifier = Modifier.gravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL))
                                     },
                                 ) { index ->
                                     Text("Day $index")
@@ -370,7 +607,7 @@ class ApiSmokeActivity : AppCompatActivity() {
                                         onSelected = { groupColumn.value = 1 },
                                         contentDescription = { "Minute ${minuteState.selectedOptionIndex}" },
                                         readOnlyLabel = {
-                                            Text("Min", modifier = Modifier.gravity(Gravity.TOP_CENTER))
+                                            Text("Min", modifier = Modifier.gravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL))
                                         },
                                     ) { index, selected ->
                                         Text("$index${if (selected) "*" else ""}")
@@ -740,7 +977,21 @@ class ApiSmokeActivity : AppCompatActivity() {
                                             )
                                         }
                                     }
-                                    Text("column ${focusColumn.value} focused: ${requester.hasFocus()}")
+                                    // ActiveFocusListener (HierarchicalFocusCoordinator.kt:349): the
+                                    // invisible node that reports when the active path enters or leaves
+                                    // this subtree. Deprecated as upstream deprecates it, so the counter
+                                    // under it is the only proof the callback ever ran — it is written by
+                                    // the coordinator, never by a click here. The lambda's receiver is a
+                                    // `CoroutineScope`, and this uses it: the write goes through `launch`,
+                                    // which is the shape upstream's `:59-60` has.
+                                    @Suppress("DEPRECATION")
+                                    ActiveFocusListener(onFocusChanged = { focused ->
+                                        launch { focusEvents.value += if (focused) 1 else -1 }
+                                    })
+                                    Text(
+                                        "column ${focusColumn.value} focused: ${requester.hasFocus()}"
+                                    )
+                                    Text("focus events: ${focusEvents.value}")
                                 }
                             }
                             // touchExplorationState: the AccessibilityManager's live value, read as a
@@ -867,6 +1118,605 @@ class ApiSmokeActivity : AppCompatActivity() {
                                     }
                                 }
                             }
+                            // Icon and FixedSizeIcon, the two entries the module's icon story rests on
+                            // (Icon.kt:31 and :65). `image: Any?` is what `Modifier.image` accepts, so the
+                            // `Drawable` branch goes here and the resource-id branch is what a real app
+                            // with its own drawables writes. `tint` is left null on the first so the
+                            // ambient content colour resolves in the body (Icon.kt:37), and set on the
+                            // second so the explicit branch runs too. Both are sized by the caller:
+                            // `Icon` measures whatever the ImageView is handed, and a `ColorDrawable` has
+                            // no intrinsic size at all.
+                            item {
+                                Row {
+                                    Icon(
+                                        image = swatch,
+                                        contentDescription = "ambient tint, caller's size",
+                                        modifier = Modifier.size(DpSize(24.dp, 24.dp)),
+                                    )
+                                    FixedSizeIcon(
+                                        image = swatch,
+                                        contentDescription = "explicit size and tint",
+                                        iconSize = IconDefaults.LargeSize,
+                                        modifier = Modifier.padding(4.dp),
+                                        tint = Color(0xFF2E4374),
+                                    )
+                                }
+                            }
+                            // The determinate ring with every parameter the default call above leaves
+                            // unresolved: `strokeWidth` and `gapSize` are `Dp?` precisely because
+                            // upstream's defaults read the theme and the parameter below it reads the
+                            // stroke (`ProgressIndicator.kt:126, :137-138`), so naming both here is the
+                            // only way to see that a caller can. `allowProgressOverflow = true` with the
+                            // slider pushed past 1 is the wrap branch, which no other call in this file
+                            // reaches (the ring above runs the coercion instead), and `enabled = false`
+                            // on the half the row picks the disabled brushes.
+                            item {
+                                Row {
+                                    CircularProgressIndicator(
+                                        progress = sliderValue / 5f,
+                                        modifier = Modifier.size(DpSize(56.dp, 56.dp)),
+                                        enabled = stepperValue % 2 == 0,
+                                        allowProgressOverflow = true,
+                                        strokeWidth = 10.dp,
+                                        gapSize = 4.dp,
+                                    )
+                                    CircularProgressIndicator(
+                                        progress = sliderValue / 5f,
+                                        modifier = Modifier.size(DpSize(56.dp, 56.dp)),
+                                        startAngle = 90f,
+                                        endAngle = 270f,
+                                        strokeWidth = CircularProgressIndicatorDefaults.largeStrokeWidth,
+                                        gapSize = CircularProgressIndicatorDefaults
+                                            .calculateRecommendedGapSize(
+                                                CircularProgressIndicatorDefaults.largeStrokeWidth,
+                                            ),
+                                    )
+                                }
+                            }
+                            // The linear bar at `StrokeWidthSmall` — 8.dp, exactly the floor its `require`
+                            // enforces (ProgressIndicator.kt:226), and therefore the boundary a caller has
+                            // to know about: below it the call throws rather than clamping. The box height
+                            // follows the stroke, since the bar draws centred in whatever it is measured.
+                            item {
+                                LinearProgressIndicator(
+                                    progress = sliderValue / 5f,
+                                    modifier = Modifier.size(DpSize(120.dp, 8.dp)),
+                                    strokeWidth = LinearProgressIndicatorDefaults.StrokeWidthSmall,
+                                    enabled = true,
+                                )
+                            }
+                            // Both `StepperLevelIndicator` overloads (LevelIndicator.kt:103 and :133). The
+                            // `Float` one maps `value` out of `valueRange`, which is why the range is the
+                            // slider's real 0f..6f and not the 0f..1f default — the default would make
+                            // this call indistinguishable from a plain `LevelIndicator`. The `Int` one
+                            // takes an `IntProgression` and is fed the same `1..10` the `Stepper` at the
+                            // top of this list runs on, so the two move together.
+                            item {
+                                Row {
+                                    StepperLevelIndicator(
+                                        value = sliderValue,
+                                        valueRange = 0f..6f,
+                                        strokeWidth = 4.dp,
+                                        sweepAngle = 270f,
+                                        reverseDirection = true,
+                                    )
+                                    StepperLevelIndicator(
+                                        value = stepperValue,
+                                        valueProgression = 1..10,
+                                        modifier = Modifier.padding(8.dp),
+                                    )
+                                }
+                            }
+                            // SplitButtonGroup, the connected-corner sibling of the `ButtonGroup` further
+                            // up (ButtonGroup.kt:141). The group's own scope is what is exercised here:
+                            // `weight`, `minWidth` and `animateWidth` are only reachable from inside the
+                            // content lambda, and two children with different weights is the case the
+                            // width solve exists for. `contentPadding` is nullable and resolved by
+                            // `ButtonGroup` in its body (ButtonGroup.kt:152), so a caller's value is the
+                            // only way to replace the full-width default paddings.
+                            item {
+                                SplitButtonGroup(
+                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
+                                ) {
+                                    CompactButton(
+                                        onClick = { page = 0 },
+                                        modifier = Modifier.weight(2f).animateWidth(),
+                                        label = { Text("Wide") },
+                                    )
+                                    CompactButton(
+                                        onClick = { page = 1 },
+                                        modifier = Modifier.minWidth(56.dp).animateWidth(),
+                                        label = { Text("Min") },
+                                    )
+                                }
+                            }
+                            // The five button-shaped selection controls. The three rows
+                            // (`CheckboxButton` CheckboxButton.kt:114, `SwitchButton` SwitchButton.kt:89,
+                            // `RadioButton` RadioButton.kt:92) all end in a required `label` and share the
+                            // same optional `icon`/`secondaryLabel` pair; the three `Split*` ones each add a
+                            // required content description and a required `onContainerClick`, which is the
+                            // whole point of the split shape — one control, two tappable halves — and the
+                            // only part of their signatures a caller cannot leave at a default. Each rides
+                            // state that something else on this screen also reads or writes, so the visible
+                            // half of the flip is real.
+                            //
+                            // `RadioButton` is spelled with a `label` on purpose. Two public `RadioButton`s
+                            // exist in this package after the bare-control rework — this row one and
+                            // `SelectionControls.kt:204`, whose listener is now `onClick`, not `onSelect` —
+                            // so the bare one is not a candidate for a call that names `onSelect`, and a
+                            // call that names `label` is not a candidate for the row's sibling. That is the
+                            // only thing keeping this pair unambiguous from a caller.
+                            item {
+                                Column {
+                                    CheckboxButton(
+                                        checked = starred.value,
+                                        onCheckedChange = { starred.value = it },
+                                        icon = {
+                                            Box(modifier = Modifier.size(DpSize(24.dp, 24.dp))) { Text("#") }
+                                        },
+                                        secondaryLabel = { Text("with an icon slot") },
+                                        label = { Text("CheckboxButton") },
+                                    )
+                                    SwitchButton(
+                                        checked = keepAwake.value,
+                                        onCheckedChange = { keepAwake.value = it },
+                                        contentPadding = PaddingValues(horizontal = 8.dp),
+                                        secondaryLabel = { Text("drives KeepScreenOn above") },
+                                        label = { Text("SwitchButton") },
+                                    )
+                                    RadioButton(
+                                        selected = splitSelected.value == 0,
+                                        onSelect = { splitSelected.value = 0 },
+                                        enabled = stepperValue % 3 != 0,
+                                        label = { Text("RadioButton row") },
+                                    )
+                                    SplitCheckboxButton(
+                                        checked = bolded.value,
+                                        onCheckedChange = { bolded.value = it },
+                                        toggleContentDescription = "toggle the checkbox",
+                                        onContainerClick = { picked.value = "checkbox container clicked" },
+                                        secondaryLabel = { Text("two halves") },
+                                        label = { Text("SplitCheckboxButton") },
+                                    )
+                                    SplitRadioButton(
+                                        selected = splitSelected.value == 0,
+                                        onSelectionClick = { splitSelected.value = 0 },
+                                        selectionContentDescription = "select the first option",
+                                        onContainerClick = { splitSelected.value = 1 },
+                                        containerClickLabel = "or the container",
+                                        secondaryLabel = { Text("selection and container") },
+                                        label = { Text("SplitRadioButton") },
+                                    )
+                                    SplitSwitchButton(
+                                        checked = keepAwake.value,
+                                        onCheckedChange = { keepAwake.value = it },
+                                        toggleContentDescription = "toggle the switch",
+                                        onContainerClick = { morphed.value = !morphed.value },
+                                        label = { Text("SplitSwitchButton, keep-awake state") },
+                                    )
+                                }
+                            }
+                            // ListSubHeader (ListHeader.kt:86) rather than ListHeader: it is the sibling
+                            // with the extra `icon` slot and the 6.dp gap the component puts between the
+                            // two slots, and it is the one this file never called.
+                            item {
+                                ListSubHeader(
+                                    backgroundColor = Color(0xFF17213B),
+                                    icon = { Text("[i]") },
+                                    label = { Text("Sub-header") },
+                                )
+                            }
+                            // TextSeparator (TimeText.kt:241) — the glyph `TimeText` puts between hours and
+                            // minutes, on its own. `textStyle` stays unset on purpose: it is `TextStyle?`
+                            // and its default resolves in the body to `arcMedium`, because the real
+                            // default is a `@Tunable` theme read a hoisted default cannot make
+                            // (TimeText.kt:235-239). A caller therefore cannot pass a styled object and
+                            // expect its colour to ride along — see the KDoc on that parameter.
+                            item {
+                                Row {
+                                    Text("09")
+                                    TextSeparator(contentPadding = PaddingValues(horizontal = 2.dp))
+                                    Text("30")
+                                }
+                            }
+                            // The two `*Content` entries of the button family, each inside a container of
+                            // the caller's own making: that is what they exist for (CompactButton.kt:136,
+                            // Button.kt:170). `CompactButtonContent` takes no required parameter at all,
+                            // so an argument-less call is legal and renders nothing — the label and icon
+                            // slots are what this row pins down.
+                            item {
+                                Surface(
+                                    modifier = Modifier.size(DpSize(200.dp, 48.dp)),
+                                    shape = CircleShape,
+                                    color = Color(0xFF2E4374),
+                                ) {
+                                    CompactButtonContent(
+                                        icon = {
+                                            Box(modifier = Modifier.size(DpSize(24.dp, 24.dp))) { Text("->") }
+                                        },
+                                        label = { Text("Compact, own container") },
+                                    )
+                                }
+                            }
+                            item {
+                                Surface(
+                                    modifier = Modifier.size(DpSize(200.dp, 64.dp)),
+                                    color = Color(0xFF17213B),
+                                    border = BorderStroke(1.dp, Color(0xFF8AB4F8)),
+                                ) {
+                                    ButtonContent(
+                                        secondaryLabel = { Text("second line") },
+                                        icon = {
+                                            Box(modifier = Modifier.size(DpSize(24.dp, 24.dp))) { Text("[i]") }
+                                        },
+                                        label = { Text("ButtonContent") },
+                                    )
+                                }
+                            }
+                            // CurvedText as a standalone component (CurvedText.kt:68) rather than the
+                            // `curvedText` member of a curved container, which this file already uses
+                            // inside `CurvedRow`. It is a `WearCurvedTextView` node, so unlike the three
+                            // curved containers below it does honour the caller's `modifier`, and the
+                            // 180 x 60.dp box is what gives the arc a chord to bend over.
+                            item {
+                                CurvedText(
+                                    text = "Standalone CurvedText",
+                                    modifier = Modifier.size(DpSize(180.dp, 60.dp)),
+                                    color = Color(0xFF8AB4F8),
+                                    fontSize = 14.sp,
+                                    clockwise = false,
+                                    maxSweepAngle = 120f,
+                                    overflow = CurvedTextOverflow.Ellipsis,
+                                )
+                            }
+                            // TransformingLazyColumn and the `ScalingLazyListState` overload of
+                            // ScrollIndicator, paired in one box because the indicator is only honest
+                            // about a list it can name: it takes `itemCount` as a parameter, since the
+                            // state publishes no `totalItemsCount` (ScrollIndicator.kt:236, :245-253), so
+                            // `smokeRows.size` has to be the very count this list is built from. The
+                            // shared `lazyListState` is what makes the thumb move with the list rather
+                            // than beside it — and, per that KDoc, it only moves when something re-tunes,
+                            // which here is the row's own scroll.
+                            item {
+                                Box(modifier = Modifier.size(DpSize(220.dp, 140.dp))) {
+                                    TransformingLazyColumn(
+                                        state = lazyListState,
+                                        contentPadding = PaddingValues(vertical = 8.dp),
+                                        transformParams = ListTransformParams(
+                                            edgeScale = 0.85f,
+                                            edgeAlpha = 0.7f,
+                                            minTransitionArea = 0.4f,
+                                        ),
+                                    ) {
+                                        items(smokeRows) { row ->
+                                            Text(row)
+                                        }
+                                    }
+                                    ScrollIndicator(
+                                        state = lazyListState,
+                                        itemCount = smokeRows.size,
+                                        modifier = Modifier.gravity(Gravity.END),
+                                        visibleItemCount = 3,
+                                        reverseDirection = false,
+                                    )
+                                }
+                            }
+                            // CustomTouchSlopProvider (CustomTouchSlopProvider.kt:57) around the slider:
+                            // upstream's own uses are always a multiplier around the current value, which
+                            // is what `currentTouchSlop` is for — the read side, resolving `LocalTouchSlop`
+                            // or the platform `ViewConfiguration` (that file, :73). 1.20x is the reveal's
+                            // number (`material3/SwipeToReveal.kt:318`), so this is the shape a host with
+                            // its own gesture code writes, not an invented one.
+                            item {
+                                CustomTouchSlopProvider(
+                                    newTouchSlop = currentTouchSlop(currentContext) * 1.20f,
+                                ) {
+                                    Slider(
+                                        value = sliderValue,
+                                        onValueChange = { sliderValue = it },
+                                        steps = 5,
+                                    )
+                                }
+                            }
+                            // VerticalPageIndicator (PageIndicator.kt:120) against the vertical pager's
+                            // state, with all three colours named because each is `Color? = null` and
+                            // resolves through `PageIndicatorDefaults` in the body (:127-129).
+                            item {
+                                VerticalPageIndicator(
+                                    pagerState = verticalPagerState,
+                                    selectedColor = Color(0xFF8AB4F8),
+                                    unselectedColor = Color(0xFF444444),
+                                    backgroundColor = Color(0xFF17213B),
+                                )
+                            }
+                            // One row per form that needs the whole dial. `pos` is the overload of the
+                            // list scope that hands the body an index, which is what lets one lambda open
+                            // fourteen different entry points by number.
+                            item {
+                                Text("Full-dial forms")
+                            }
+                            pos(count = overlayTitles.size) { index ->
+                                CompactButton(
+                                    onClick = { overlayForm.value = index },
+                                    label = { Text(overlayTitles[index]) },
+                                )
+                            }
+                            item {
+                                TextToggleButton(
+                                    checked = contentFormsShown.value,
+                                    onCheckedChange = { contentFormsShown.value = it },
+                                ) {
+                                    Text("Show the Content twins")
+                                }
+                            }
+                            // The ten `*Content` twins of the dialog and card family: the same layouts
+                            // with no window, no timer and no haptic, which is the half of the port a
+                            // caller drives itself. Every one roots at `matchParentSize()`
+                            // (AlertDialog.kt:902-906, ConfirmationDialog.kt:247/:614), so each needs a
+                            // box with bounds of its own — inside a list row, that box is the caller's.
+                            //
+                            // The eight `curvedText` slots in this file — four in this block, four in the
+                            // dialog overlays below — take a plain function type, and that is upstream's
+                            // shape rather than a port gap: `material3/ConfirmationDialog.kt:592` is
+                            // `public fun CurvedScope.confirmationDialogCurvedText(text: String,
+                            // style: CurvedTextStyle)` with no `@Composable` on it and `style` required,
+                            // and `CurvedLayout.kt:90-96` here declares `content: CurvedLayoutScope.() -> Unit`
+                            // plain. So the helpers are legal inside the slot and a theme read is not: the
+                            // tuner reaches a `@Tunable` call as a parameter its enclosing lambda owns, and
+                            // a nested non-inline lambda has none
+                            // (hibari-compiler/.../TunerParamTransformer.kt:626-647) — which the K2 checker
+                            // will not tell you about, because it keeps walking outward and stops at the
+                            // host `@Tunable` body (`TunableCallChecker.kt:113-121`). Hence the two-step
+                            // below, and it is the only correct call shape: resolve
+                            // `ConfirmationDialogDefaults.curvedTextStyle` / `OpenOnPhoneDialogDefaults.curvedTextStyle`
+                            // (and `.text`) in the caller's own `@Tunable` body and pass the finished value
+                            // in. Anything that read a theme from inside one of these slots compiled, ran
+                            // without a tuner, and is being corrected in hibari-wear by the file's owner.
+                            if (contentFormsShown.value) {
+                                item {
+                                    Box(modifier = Modifier.size(DpSize(220.dp, 170.dp))) {
+                                        AlertDialogContent(
+                                            confirmButton = {
+                                                AlertDialogDefaults.ConfirmButton(
+                                                    onClick = { picked.value = "confirmed" },
+                                                    content = { Text("ok") },
+                                                )
+                                            },
+                                            title = { Text("Content: confirm and dismiss") },
+                                            dismissButton = {
+                                                AlertDialogDefaults.DismissButton(
+                                                    onClick = { picked.value = "dismissed" },
+                                                    content = { Text("no") },
+                                                )
+                                            },
+                                            icon = {
+                                                FixedSizeIcon(
+                                                    image = swatch,
+                                                    contentDescription = "dialog icon",
+                                                    iconSize = AlertDialogDefaults.IconSize,
+                                                )
+                                            },
+                                            text = { Text("A message under the title.") },
+                                            verticalArrangement = Arrangement.spacedBy(
+                                                space = 6.dp,
+                                                alignment = Alignment.CenterVertically,
+                                            ),
+                                        )
+                                    }
+                                }
+                                // The same content with a `transformationSpec`, and with `content` — which
+                                // is what makes the spec mean anything: `alertDialogSpecifiedContent`
+                                // forwards to the fixed layout when `content` is null
+                                // (AlertDialog.kt:1011-1026), so the spec only reaches a real list here.
+                                item {
+                                    Box(modifier = Modifier.size(DpSize(220.dp, 170.dp))) {
+                                        AlertDialogContent(
+                                            confirmButton = {
+                                                AlertDialogDefaults.ConfirmButton(
+                                                    onClick = { picked.value = "confirmed" },
+                                                )
+                                            },
+                                            title = { Text("Content: listed, own spec") },
+                                            dismissButton = {
+                                                AlertDialogDefaults.DismissButton(
+                                                    onClick = { picked.value = "dismissed" },
+                                                )
+                                            },
+                                            transformationSpec = AlertDialogDefaults.AlertScalingParams,
+                                            content = {
+                                                item(key = "alert-c-1") { Text("Listed row one") }
+                                                item(key = "alert-c-2") { Text("Listed row two") }
+                                            },
+                                        )
+                                    }
+                                }
+                                item {
+                                    Box(modifier = Modifier.size(DpSize(220.dp, 120.dp))) {
+                                        AlertDialogContent(
+                                            title = { Text("Content: buttonless") },
+                                            text = { Text("No buttons at all.") },
+                                            contentPadding = PaddingValues(all = 10.dp),
+                                            content = {
+                                                item(key = "alert-c-3") { Text("The caller seeks input here") }
+                                            },
+                                        )
+                                    }
+                                }
+                                // The pair where upstream's `contentPadding` is a *function* of
+                                // `isScrollable` (AlertDialog.kt:725-734). That is the one alert signature
+                                // a caller can only satisfy with a lambda, and `content != null` is what
+                                // the body feeds it (that overload, :735).
+                                item {
+                                    Box(modifier = Modifier.size(DpSize(220.dp, 150.dp))) {
+                                        AlertDialogContent(
+                                            title = { Text("Content: buttonless, own spec") },
+                                            transformationSpec = ListTransformParams(edgeScale = 0.9f),
+                                            icon = {
+                                                FixedSizeIcon(
+                                                    image = swatch,
+                                                    contentDescription = "dialog icon",
+                                                    iconSize = AlertDialogDefaults.IconSize,
+                                                )
+                                            },
+                                            contentPadding = { isScrollable ->
+                                                PaddingValues(all = if (isScrollable) 8.dp else 16.dp)
+                                            },
+                                            content = {
+                                                item(key = "alert-c-4") { Text("Scrollable, so 8.dp") }
+                                            },
+                                        )
+                                    }
+                                }
+                                item {
+                                    Box(modifier = Modifier.size(DpSize(220.dp, 150.dp))) {
+                                        AlertDialogContent(
+                                            edgeButton = {
+                                                AlertDialogDefaults.EdgeButton(
+                                                    onClick = { picked.value = "edge button" },
+                                                    content = { Text("Got it") },
+                                                )
+                                            },
+                                            title = { Text("Content: edge button") },
+                                            text = { Text("One-way acknowledgement.") },
+                                        )
+                                    }
+                                }
+                                item {
+                                    Box(modifier = Modifier.size(DpSize(220.dp, 150.dp))) {
+                                        AlertDialogContent(
+                                            edgeButton = {
+                                                AlertDialogDefaults.EdgeButton(
+                                                    onClick = { picked.value = "edge button" },
+                                                )
+                                            },
+                                            title = { Text("Content: edge button, own spec") },
+                                            transformationSpec = ListTransformParams(),
+                                            content = {
+                                                item(key = "alert-c-5") { Text("Row above the edge button") }
+                                            },
+                                        )
+                                    }
+                                }
+                                // The two `ConfirmationDialogContent` overloads — the curved label and the
+                                // linear text — which are the same slot pair the dialog above them
+                                // branches on, minus the dismiss timer.
+                                item {
+                                    val curvedLabelStyle = ConfirmationDialogDefaults.curvedTextStyle()
+                                    Box(modifier = Modifier.size(DpSize(220.dp, 180.dp))) {
+                                        ConfirmationDialogContent(
+                                            curvedText = {
+                                                confirmationDialogCurvedText(
+                                                    text = "Curved",
+                                                    style = curvedLabelStyle,
+                                                )
+                                            },
+                                            content = { Text("*") },
+                                        )
+                                    }
+                                }
+                                item {
+                                    Box(modifier = Modifier.size(DpSize(220.dp, 180.dp))) {
+                                        ConfirmationDialogContent(
+                                            text = { Text("Linear text") },
+                                            modifier = Modifier.padding(8.dp),
+                                            content = { Text("o") },
+                                        )
+                                    }
+                                }
+                                // The success and failure twins. Two things differ from the plain pair
+                                // above: they have no `text`-slot overload, and their `content` is neither
+                                // required nor nullable — it carries upstream's parameter default verbatim,
+                                // `= { ConfirmationDialogDefaults.SuccessIcon() }`
+                                // (ConfirmationDialog.kt:355) and `= { ...ConnectionFailureIcon() }` (:439),
+                                // where the plain `ConfirmationDialogContent` still requires the slot
+                                // (:213, :242). The failure box below therefore omits `content` entirely,
+                                // which is what actually runs the default-artwork path.
+                                item {
+                                    val curvedLabelStyle = ConfirmationDialogDefaults.curvedTextStyle()
+                                    Box(modifier = Modifier.size(DpSize(220.dp, 180.dp))) {
+                                        SuccessConfirmationDialogContent(
+                                            curvedText = {
+                                                confirmationDialogCurvedText(
+                                                    text = "Saved",
+                                                    style = curvedLabelStyle,
+                                                )
+                                            },
+                                            content = { Text(":)") },
+                                        )
+                                    }
+                                }
+                                item {
+                                    val curvedLabelStyle = ConfirmationDialogDefaults.curvedTextStyle()
+                                    Box(modifier = Modifier.size(DpSize(220.dp, 180.dp))) {
+                                        FailureConfirmationDialogContent(
+                                            curvedText = {
+                                                confirmationDialogCurvedText(
+                                                    text = "Nope",
+                                                    style = curvedLabelStyle,
+                                                )
+                                            },
+                                        )
+                                    }
+                                }
+                                // OpenOnPhoneDialogContent: the one content entry whose `durationMillis`
+                                // has no default either, because the dialog hands it down rather than
+                                // letting the ring read one (`OpenOnPhoneDialog.kt:168-174`). `content`
+                                // is where upstream's default icon goes — a null `content` at this entry
+                                // point draws no icon at all, and `OpenOnPhoneDialogDefaults.Icon` is the
+                                // artwork, not a default this caller can inherit.
+                                item {
+                                    // Both of this label's two arguments are `@Tunable` reads upstream
+                                    // would have made in the slot itself (`material3`'s own default is
+                                    // `{ OpenOnPhoneDialogDefaults.text }` fed to a theme-styled label), so
+                                    // both are resolved here and passed in.
+                                    val openOnPhoneLabel = OpenOnPhoneDialogDefaults.text
+                                    val curvedLabelStyle = OpenOnPhoneDialogDefaults.curvedTextStyle()
+                                    Box(modifier = Modifier.size(DpSize(220.dp, 180.dp))) {
+                                        OpenOnPhoneDialogContent(
+                                            curvedText = {
+                                                openOnPhoneDialogCurvedText(
+                                                    text = openOnPhoneLabel,
+                                                    style = curvedLabelStyle,
+                                                )
+                                            },
+                                            durationMillis = OpenOnPhoneDialogDefaults.DurationMillis,
+                                            content = { OpenOnPhoneDialogDefaults.Icon() },
+                                        )
+                                    }
+                                }
+                                // The card `*Content` twins, inside `Card`'s generic content slot, which is
+                                // the placement their own KDoc asks for (TitleCard.kt:187, AppCard.kt:182).
+                                item {
+                                    Card(
+                                        modifier = Modifier.size(DpSize(220.dp, 150.dp)),
+                                        minHeight = 120.dp,
+                                    ) {
+                                        TitleCardContent(
+                                            title = { Text("TitleCardContent") },
+                                            time = { Text("9:30") },
+                                            subtitle = { Text("subtitle") },
+                                            content = { Text("body") },
+                                        )
+                                    }
+                                }
+                                item {
+                                    Card(
+                                        modifier = Modifier.size(DpSize(220.dp, 150.dp)),
+                                        colors = CardDefaults.cardColors(),
+                                    ) {
+                                        val appIcon = CardDefaults.AppImageSize
+                                        AppCardContent(
+                                            appName = { Text("Hibari") },
+                                            title = { Text("AppCardContent") },
+                                            appImage = {
+                                                Box(modifier = Modifier.size(DpSize(appIcon, appIcon))) { }
+                                            },
+                                            time = { Text("11:12") },
+                                            content = { Text("body") },
+                                        )
+                                    }
+                                }
+                            }
                         }
                         // Pinned to the dial edge rather than listed, because the shape is the whole
                         // point of it and only an edge-hugging placement shows whether the arcs,
@@ -920,9 +1770,10 @@ class ApiSmokeActivity : AppCompatActivity() {
                         // modifier, so a pager cannot be sized down or listed — which makes this the
                         // same one-boolean shape as the dialog below, and for the same reason.
                         // `pageIndicator` is deliberately left at its default, because the default is
-                        // the interesting half: the scaffold's indicator slot reads only `pageCount` in
-                        // a tune and pushes the live page and offset onto it per frame through
-                        // `WearPagerIndicatorSlotView`. `pageIndicatorAnimationSpec` is the one
+                        // the interesting half: it is upstream's `{ HorizontalPageIndicator(pagerState) }`
+                        // (`PagerScaffold.kt:80`), and the indicator binds the pager's own scroll channel
+                        // on itself, the way upstream reads the page and offset inside its draw pass.
+                        // `pageIndicatorAnimationSpec` is the one
                         // non-default — with it the dots are hidden while the pager is settled and show
                         // only during a page turn.
                         // `AnimatedPage` is the port's `pageTransform`: scale 1 -> 0.55 around the far
@@ -935,15 +1786,15 @@ class ApiSmokeActivity : AppCompatActivity() {
                                 pagerState = pagerState,
                                 pageIndicatorAnimationSpec = PagerScaffoldDefaults.FadeOutAnimationSpec,
                             ) {
-                                HorizontalPager(state = pagerState) { page ->
-                                    AnimatedPage(pageIndex = page, pagerState = pagerState) {
+                                HorizontalPager(state = pagerState) { pagerPage ->
+                                    AnimatedPage(pageIndex = pagerPage, pagerState = pagerState) {
                                         Column {
-                                            Text("Page ${page + 1} of ${pagerState.pageCount}")
+                                            Text("Page ${pagerPage + 1} of ${pagerState.pageCount}")
                                             TextButton(
                                                 onClick = {
                                                     pagerScrollScope.launch {
                                                         pagerState.animateScrollToPage(
-                                                            (page + 1) % pagerState.pageCount,
+                                                            (pagerPage + 1) % pagerState.pageCount,
                                                         )
                                                     }
                                                 },
@@ -966,14 +1817,14 @@ class ApiSmokeActivity : AppCompatActivity() {
                         // above.
                         if (verticalPagerOpen.value) {
                             VerticalPagerScaffold(pagerState = verticalPagerState) {
-                                VerticalPager(state = verticalPagerState) { page ->
+                                VerticalPager(state = verticalPagerState) { pagerPage ->
                                     Column {
-                                        Text("Vertical page ${page + 1}")
+                                        Text("Vertical page ${pagerPage + 1}")
                                         TextButton(
                                             onClick = {
                                                 pagerScrollScope.launch {
                                                     verticalPagerState.scrollToPage(
-                                                        (page + 1) % verticalPagerState.pageCount,
+                                                        (pagerPage + 1) % verticalPagerState.pageCount,
                                                     )
                                                 }
                                             },
@@ -1025,9 +1876,400 @@ class ApiSmokeActivity : AppCompatActivity() {
                                 }
                             }
                         }
+                        // The fraction overload of ScrollIndicator, on the bezel circle the component is
+                        // documented for (ScrollIndicator.kt:168-169) rather than beside a list: it sizes
+                        // itself from `screenWidthDp` inside the body (:285-292), so the caller's modifier
+                        // only places it. The slider drives it for real, and it is here rather than in the
+                        // list because a curve over the dial is the only place its shape reads correctly.
+                        ScrollIndicator(
+                            positionFraction = sliderValue / 6f,
+                            sizeFraction = 0.3f,
+                            modifier = Modifier.gravity(Gravity.CENTER_VERTICAL),
+                            reverseDirection = stepperValue % 2 == 0,
+                        )
+                        // The six `AlertDialog` overloads (AlertDialog.kt:279, :338, :392, :447, :514,
+                        // :563), each gated by its own `visible` — which is what upstream's `show` does at
+                        // this entry point, and the reason all six can sit in the tree at once: an
+                        // invisible one emits nothing (that file, :252-254). All six are written from the
+                        // signatures, not from memory, and each one names something the others leave at
+                        // its default, so the six really are six call shapes.
+                        //
+                        // The three that take a `transformationSpec` also pass `content`, and that is not
+                        // decoration: `alertDialogSpecifiedContent` forwards to the fixed layout when
+                        // `content` is null (:1011-1026), so the spec reaches a real list only with it.
+                        AlertDialog(
+                            visible = overlayForm.value == 0,
+                            onDismissRequest = { overlayForm.value = -1 },
+                            confirmButton = {
+                                AlertDialogDefaults.ConfirmButton(
+                                    onClick = {
+                                        picked.value = "confirmed on form 0"
+                                        overlayForm.value = -1
+                                    },
+                                    content = { Text("ok") },
+                                )
+                            },
+                            title = { Text("Confirm or dismiss") },
+                            modifier = Modifier.padding(8.dp),
+                            dismissButton = {
+                                AlertDialogDefaults.DismissButton(
+                                    onClick = {
+                                        picked.value = "dismissed on form 0"
+                                        overlayForm.value = -1
+                                    },
+                                    content = { Text("no") },
+                                )
+                            },
+                            icon = {
+                                FixedSizeIcon(
+                                    image = swatch,
+                                    contentDescription = "dialog icon",
+                                    iconSize = AlertDialogDefaults.IconSize,
+                                )
+                            },
+                            text = { Text("The confirm/dismiss overload, with both buttons.") },
+                            properties = DialogProperties(
+                                dismissOnBackPress = true,
+                                dismissOnClickOutside = false,
+                            ),
+                        )
+                        AlertDialog(
+                            visible = overlayForm.value == 1,
+                            onDismissRequest = { overlayForm.value = -1 },
+                            confirmButton = {
+                                AlertDialogDefaults.ConfirmButton(
+                                    onClick = {
+                                        picked.value = "confirmed on form 1"
+                                        overlayForm.value = -1
+                                    },
+                                )
+                            },
+                            title = { Text("Listed with the caller's spec") },
+                            transformationSpec = ListTransformParams(
+                                edgeScale = 0.9f,
+                                edgeAlpha = 0.8f,
+                            ),
+                            dismissButton = {
+                                AlertDialogDefaults.DismissButton(
+                                    onClick = { overlayForm.value = -1 },
+                                )
+                            },
+                            content = {
+                                item(key = "alert-1-a") { Text("A listed row") }
+                                item(key = "alert-1-b") { Text("Another listed row") }
+                            },
+                        )
+                        AlertDialog(
+                            visible = overlayForm.value == 2,
+                            onDismissRequest = { overlayForm.value = -1 },
+                            title = { Text("Buttonless") },
+                            text = { Text("The caller seeks input through content.") },
+                            contentPadding = PaddingValues(all = 12.dp),
+                            content = {
+                                item(key = "alert-2") {
+                                    Slider(
+                                        value = sliderValue,
+                                        onValueChange = { sliderValue = it },
+                                        steps = 5,
+                                    )
+                                }
+                            },
+                        )
+                        // The overload whose `contentPadding` is a function of `isScrollable`
+                        // (AlertDialog.kt:447-459). It is the only alert parameter that cannot be answered
+                        // with a value, and the Boolean it receives is `content != null` (:460).
+                        AlertDialog(
+                            visible = overlayForm.value == 3,
+                            onDismissRequest = { overlayForm.value = -1 },
+                            title = { Text("Buttonless, listed, own spec") },
+                            transformationSpec = AlertDialogDefaults.AlertScalingParams,
+                            icon = {
+                                FixedSizeIcon(
+                                    image = swatch,
+                                    contentDescription = "dialog icon",
+                                    iconSize = AlertDialogDefaults.IconSize,
+                                )
+                            },
+                            verticalArrangement = Arrangement.spacedBy(
+                                space = 6.dp,
+                                alignment = Alignment.CenterVertically,
+                            ),
+                            contentPadding = { isScrollable ->
+                                PaddingValues(all = if (isScrollable) 8.dp else 20.dp)
+                            },
+                            properties = DialogProperties(dismissOnBackPress = false),
+                            content = {
+                                item(key = "alert-3") { Text("Scrollable, so 8.dp of padding") }
+                            },
+                        )
+                        AlertDialog(
+                            visible = overlayForm.value == 4,
+                            onDismissRequest = { overlayForm.value = -1 },
+                            edgeButton = {
+                                AlertDialogDefaults.EdgeButton(
+                                    onClick = {
+                                        picked.value = "edge button on form 4"
+                                        overlayForm.value = -1
+                                    },
+                                    content = { Text("Got it") },
+                                )
+                            },
+                            title = { Text("One-way acknowledgement") },
+                            text = { Text("A single edge button at the bottom edge.") },
+                        )
+                        AlertDialog(
+                            visible = overlayForm.value == 5,
+                            onDismissRequest = { overlayForm.value = -1 },
+                            edgeButton = {
+                                AlertDialogDefaults.EdgeButton(
+                                    onClick = { overlayForm.value = -1 },
+                                )
+                            },
+                            title = { Text("Edge button, listed, own spec") },
+                            transformationSpec = ListTransformParams(reduceMotion = true),
+                            contentPadding = PaddingValues(horizontal = 10.dp),
+                            content = {
+                                item(key = "alert-5") { Text("Row above the edge button") }
+                            },
+                        )
+                        // The two `ConfirmationDialog` overloads (ConfirmationDialog.kt:166 and :189), the
+                        // curved label and the linear text. Both take `curvedText` / `text` as a *required*
+                        // nullable with no default at all, so the argument is never optional here, and both
+                        // take `content` as a required `@Tunable () -> Unit` (:172, :195) — the plain
+                        // dialog has no artwork to default to, unlike the success and failure siblings
+                        // below, which do. The dismiss is on the timer, so `durationMillis` below 4000 is
+                        // what a caller can actually feel. `style` is read here, in this `@Tunable` body,
+                        // and passed into the slot as a value — the slot itself is plain, so it cannot host
+                        // the read; the note above the Content block has the mechanism.
+                        if (overlayForm.value == 6) {
+                            val curvedLabelStyle = ConfirmationDialogDefaults.curvedTextStyle()
+                            ConfirmationDialog(
+                                onDismissRequest = { overlayForm.value = -1 },
+                                curvedText = {
+                                    confirmationDialogCurvedText(
+                                        text = "Saved",
+                                        style = curvedLabelStyle,
+                                    )
+                                },
+                                durationMillis = 2500L,
+                                content = {
+                                    FixedSizeIcon(
+                                        image = swatch,
+                                        contentDescription = "confirmation icon",
+                                        iconSize = ConfirmationDialogDefaults.IconSize,
+                                    )
+                                },
+                            )
+                        }
+                        if (overlayForm.value == 7) {
+                            ConfirmationDialog(
+                                onDismissRequest = { overlayForm.value = -1 },
+                                text = {
+                                    Text(
+                                        "Linear text, up to " +
+                                            ConfirmationDialogDefaults.LinearContentMaxLines +
+                                            " lines",
+                                    )
+                                },
+                                modifier = Modifier.padding(8.dp),
+                                colors = ConfirmationDialogDefaults.colors(
+                                    iconColor = Color(0xFF8AB4F8),
+                                ),
+                                content = {
+                                    FixedSizeIcon(
+                                        image = swatch,
+                                        contentDescription = "confirmation icon",
+                                        iconSize = ConfirmationDialogDefaults.SmallIconSize,
+                                    )
+                                },
+                            )
+                        }
+                        // The success and failure dialogs. Both hand their colours to the body, so `colors`
+                        // stays null and the variant's own `successColors` / `failureColors` resolution runs
+                        // (ConfirmationDialog.kt:332, :418) — that is the part of the pair a caller cannot
+                        // see from the signature. `content` is not required on these two: it carries
+                        // upstream's parameter default verbatim, `SuccessIcon()` at :330 and
+                        // `ConnectionFailureIcon()` at :416. So the success call below omits it, which is
+                        // the default-artwork path, and the failure call passes `GenericFailureIcon`
+                        // explicitly over it, which is the replacement path. `FailureIcon`, called in the
+                        // row further up, is upstream's deprecated alias of `ConnectionFailureIcon` and is
+                        // called under `@Suppress("DEPRECATION")` — no live site in the module uses it, so
+                        // this row is its only external caller.
+                        if (overlayForm.value == 8) {
+                            val curvedLabelStyle = ConfirmationDialogDefaults.curvedTextStyle()
+                            SuccessConfirmationDialog(
+                                onDismissRequest = { overlayForm.value = -1 },
+                                curvedText = {
+                                    confirmationDialogCurvedText(
+                                        text = "Sent",
+                                        style = curvedLabelStyle,
+                                    )
+                                },
+                            )
+                        }
+                        if (overlayForm.value == 9) {
+                            val curvedLabelStyle = ConfirmationDialogDefaults.curvedTextStyle()
+                            FailureConfirmationDialog(
+                                onDismissRequest = { overlayForm.value = -1 },
+                                curvedText = {
+                                    confirmationDialogCurvedText(
+                                        text = "Failed",
+                                        style = curvedLabelStyle,
+                                    )
+                                },
+                                durationMillis = 2500L,
+                                content = {
+                                    FixedSizeIcon(
+                                        image = swatch,
+                                        contentDescription = "failure icon",
+                                        iconSize = ConfirmationDialogDefaults.IconSize,
+                                    )
+                                },
+                            )
+                        }
+                        // OpenOnPhoneDialog (OpenOnPhoneDialog.kt:128): the one dialog of this family that
+                        // *does* default `curvedText` to null, and `content` to null too — where upstream
+                        // defaults it to its own icon. That is not cosmetic here: a null `content` draws no
+                        // icon at all, so this call passes `OpenOnPhoneDialogDefaults.Icon` explicitly,
+                        // exactly as that file's KDoc instructs (:120-125, :137-145).
+                        if (overlayForm.value == 10) {
+                            val openOnPhoneLabel = OpenOnPhoneDialogDefaults.text
+                            val curvedLabelStyle = OpenOnPhoneDialogDefaults.curvedTextStyle()
+                            OpenOnPhoneDialog(
+                                onDismissRequest = { overlayForm.value = -1 },
+                                curvedText = {
+                                    openOnPhoneDialogCurvedText(
+                                        text = openOnPhoneLabel,
+                                        style = curvedLabelStyle,
+                                    )
+                                },
+                                durationMillis = 2500L,
+                                content = { OpenOnPhoneDialogDefaults.Icon() },
+                            )
+                        }
+                        // The three curved containers, as roots. They are full-dial overlays because a
+                        // caller cannot size them down: `CurvedLayout`'s own KDoc says a layout attribute
+                        // on the call never reaches the host's `LayoutParams` (CurvedLayout.kt:70-78), so
+                        // `matchParentSize()` is the only modifier that means anything, which is also what
+                        // the `CurvedRow` at the top of this screen uses. Each is switched to the bottom
+                        // anchor (90 degrees is 6 o'clock, :80-82) with the non-default alignment and
+                        // direction parameters named, and each fills the scope with the container members
+                        // that only exist on `CurvedLayoutScope` — `curvedRow`, `curvedBox`,
+                        // `curvedColumn`, `curvedComposable`, `curvedText`.
+                        if (overlayForm.value == 11) {
+                            CurvedLayout(
+                                modifier = Modifier.matchParentSize(),
+                                anchor = 90f,
+                                anchorType = CurvedAnchor.Start,
+                                radialAlignment = CurvedAlignment.Radial.Inner,
+                                angularDirection = CurvedDirection.Angular.Reversed,
+                            ) {
+                                curvedText(text = "CurvedLayout", maxSweepAngle = 90f)
+                                curvedRow(radialAlignment = CurvedAlignment.Radial.Outer) {
+                                    curvedText(text = " inner row", maxSweepAngle = 40f)
+                                }
+                                curvedComposable(rotationLocked = true) {
+                                    Text("locked upright", fontSize = 12.sp)
+                                }
+                            }
+                        }
+                        if (overlayForm.value == 12) {
+                            CurvedBox(
+                                modifier = Modifier.matchParentSize(),
+                                anchor = 90f,
+                                anchorType = CurvedAnchor.Center,
+                                radialAlignment = CurvedAlignment.Radial.Center,
+                                angularAlignment = CurvedAlignment.Angular.Start,
+                                angularDirection = CurvedDirection.Angular.CounterClockwise,
+                            ) {
+                                curvedText(text = "CurvedBox", maxSweepAngle = 120f)
+                                curvedText(text = " on top", maxSweepAngle = 60f)
+                            }
+                        }
+                        if (overlayForm.value == 13) {
+                            CurvedColumn(
+                                modifier = Modifier.matchParentSize(),
+                                anchor = 90f,
+                                anchorType = CurvedAnchor.End,
+                                radialDirection = CurvedDirection.Radial.InsideOut,
+                                angularAlignment = CurvedAlignment.Angular.End,
+                            ) {
+                                curvedText(text = "Curved", maxSweepAngle = 80f)
+                                curvedText(text = " column", maxSweepAngle = 80f)
+                                curvedBox(angularAlignment = CurvedAlignment.Angular.Center) {
+                                    curvedText(text = " and a box", maxSweepAngle = 40f)
+                                }
+                            }
+                        }
+                        // None of the three above dismisses itself, so the way out is the one thing a
+                        // caller can still place over them: a later sibling of the same root.
+                        if (overlayForm.value >= 11) {
+                            CompactButton(
+                                onClick = { overlayForm.value = -1 },
+                                modifier = Modifier.gravity(Gravity.BOTTOM),
+                                label = { Text("Close") },
+                            )
+                        }
                     }
                 }
             }
+        )
+    }
+}
+
+/**
+ * A caller-owned host for the module's public `Canvas.drawCircularProgressIndicator`.
+ *
+ * Upstream keeps that entry point (`DrawScope.drawCircularProgressIndicator`,
+ * `CircularProgressIndicator.kt:262-322`) for a caller that drives its own drawing, and nothing inside
+ * `hibari-wear` calls it — `WearCircularProgressView.onDraw` (`:165-226`) runs the same maths through
+ * the `internal` `drawIndicatorSegment` instead. This view is therefore the first caller the entry
+ * point has, which is what puts it on a screen: an entry no one calls is an entry whose signature can
+ * rot without a build noticing.
+ *
+ * The [Paint] is the caller's and is reused across frames — a draw routine must not allocate one per
+ * call — and it carries `STROKE` with round caps, the same setup `WearCircularProgressView` gives its
+ * own arc paint (`:54-57`). The entry point only ever writes `color` and `strokeWidth` on it, so this
+ * is not something the draw call can be relied on to fix up.
+ */
+internal class SmokeProgressRingView @JvmOverloads constructor(
+    context: Context,
+    attrs: AttributeSet? = null,
+    defStyleAttr: Int = 0,
+) : View(context, attrs, defStyleAttr) {
+
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+    }
+
+    /**
+     * One frame's state, pushed in by the tune through the attribute on this node's modifier.
+     * `spec.indeterminate` and `spec.flipHorizontal` are not read: the non-animating entry point has no
+     * indeterminate mode and no direction handling — upstream's `DrawScope` version has neither, and the
+     * circular indicator is not direction dependent (`ProgressIndicator.kt:115`, `:154`).
+     */
+    var spec: ProgressSpec? = null
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    override fun onDraw(canvas: Canvas) {
+        val s = spec ?: return
+        canvas.drawCircularProgressIndicator(
+            progress = s.progress,
+            colors = s.colors,
+            strokeWidth = s.strokeWidth,
+            paint = paint,
+            density = resources.displayMetrics.density,
+            enabled = s.enabled,
+            // From the spec rather than left to the parameter default, so this view honours the same
+            // field every other indicator in the module honours.
+            allowProgressOverflow = s.allowProgressOverflow,
+            startAngle = s.startAngle,
+            endAngle = s.endAngle,
+            gapSize = s.gapSize,
         )
     }
 }

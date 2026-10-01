@@ -1,7 +1,6 @@
 package com.huanli233.hibari.wearsample
 
 import android.os.Bundle
-import android.view.Gravity
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.huanli233.hibari.foundation.attributes.matchParentSize
@@ -26,7 +25,7 @@ import com.huanli233.hibari.wear.ListHeader
 import com.huanli233.hibari.wear.MaterialTheme
 import com.huanli233.hibari.wear.RadioButton
 import com.huanli233.hibari.wear.ScreenScaffold
-import com.huanli233.hibari.wear.SwitchButton
+import com.huanli233.hibari.wear.Switch
 import com.huanli233.hibari.wear.Text
 import com.huanli233.hibari.wear.TimeText
 import com.huanli233.hibari.wear.lazy.ScalingLazyColumn
@@ -60,9 +59,14 @@ class MainActivity : AppCompatActivity() {
                     // ambient colour to resolve against and keeps the raw TextView theme colour,
                     // because this port seeds LocalContentColor with Unspecified rather than
                     // upstream's White (material3/ContentColor.kt:34).
-                    AppScaffold {
+                    AppScaffold(
+                        timeText = { TimeText() },
+                    ) {
                         ScreenScaffold { contentPadding ->
-                            TimeText(modifier = Modifier.gravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL))
+                            // The clock comes in through `AppScaffold`'s own slot, as upstream emits it
+                            // there (`material3/AppScaffold.kt:56`, default `{ TimeText() }`), instead of
+                            // being hand-placed in the content — which, now that the slot has a default,
+                            // would draw two clocks on top of each other.
                             ScalingLazyColumn(
                                 modifier = Modifier
                                     .matchParentSize()
@@ -92,7 +96,7 @@ class MainActivity : AppCompatActivity() {
                                     )
                                 }
                                 item {
-                                    SwitchButton(
+                                    Switch(
                                         checked = !checked,
                                         onCheckedChange = { checked = !it },
                                     )
@@ -100,7 +104,7 @@ class MainActivity : AppCompatActivity() {
                                 pos(3) { index ->
                                     RadioButton(
                                         selected = radio == index,
-                                        onSelect = { radio = index },
+                                        onClick = { radio = index },
                                         modifier = Modifier.padding(vertical = 2.dp),
                                     )
                                 }
