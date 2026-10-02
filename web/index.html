@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hibari 云雀 —— Between Views and Compose 的 Android UI 构建工具</title>
+<meta name="description" content="Hibari 是一个把 Jetpack Compose 的声明式体验带回 Android Views 的开源 UI 构建工具：@Tunable 函数描述界面，Modifier 与 Attribute 承载一切，虚拟节点树与 Retune 负责差异更新。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M6 40 C20 34 28 22 34 8 C36 16 42 20 52 20 C44 26 42 34 44 44 C34 38 22 40 6 52 Z' fill='%23f0b34b'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+
+<header class="site-nav">
+  <a class="brand" href="#top">
+    <svg class="brand-bird" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+      <path d="M6 40 C20 34 28 22 34 8 C36 16 42 20 52 20 C44 26 42 34 44 44 C34 38 22 40 6 52 Z"/>
+    </svg>
+    <span>Hibari</span>
+  </a>
+  <nav aria-label="页面导航">
+    <a href="#why">背景</a>
+    <a href="#concepts">核心概念</a>
+    <a href="#flow">它如何工作</a>
+    <a href="#demo">示意演示</a>
+    <a href="#modules">模块</a>
+    <a href="#usage">上手</a>
+  </nav>
+  <a class="nav-cta" href="https://github.com/huanli233/Hibari" rel="noopener">GitHub</a>
+</header>
+
+<main id="top">
+
+  <section class="hero">
+    <div class="hero-sky" aria-hidden="true">
+      <svg class="hero-flock" viewBox="0 0 1200 320" preserveAspectRatio="xMidYMax slice">
+        <path class="b b1" d="M0 0 C14 -8 20 -22 26 -36 C28 -26 36 -22 48 -22 C38 -14 34 -4 36 8 C24 0 12 4 0 16 Z"/>
+        <path class="b b2" d="M0 0 C14 -8 20 -22 26 -36 C28 -26 36 -22 48 -22 C38 -14 34 -4 36 8 C24 0 12 4 0 16 Z"/>
+        <path class="b b3" d="M0 0 C14 -8 20 -22 26 -36 C28 -26 36 -22 48 -22 C38 -14 34 -4 36 8 C24 0 12 4 0 16 Z"/>
+      </svg>
+    </div>
+    <div class="hero-inner">
+      <p class="kicker">Between Views and Compose</p>
+      <h1>Hibari<span class="cn">云雀</span></h1>
+      <p class="lede">一个把 Compose 的声明式开发体验带回 Views 世界的 Android UI 构建工具。<br>
+      用 <code>@Tunable</code> 函数描述界面，让 <code>Modifier</code> 与 <code>Attribute</code> 承载一切，
+      由虚拟节点树与 <em>Retune</em> 完成差异更新。</p>
+      <div class="hero-actions">
+        <a class="btn primary" href="https://github.com/huanli233/Hibari" rel="noopener">在 GitHub 查看</a>
+        <a class="btn ghost" href="#concepts">了解核心机制</a>
+      </div>
+      <ul class="badges" aria-label="项目状态">
+        <li>Kotlin</li>
+        <li>Android Views</li>
+        <li>LGPL-2.1</li>
+        <li class="wip">开发中 · 组件封装尚不稳定</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="why" class="split">
+    <div class="split-col col-views">
+      <h2>一边是 Views</h2>
+      <p>官方推荐的 Views 开发方式是 <strong>XML + Bindings</strong>：静态、难以动态变化，写起来远不如 Compose 痛快。而 Google 并不打算继续为 Views 添砖加瓦。</p>
+    </div>
+    <div class="split-col col-compose">
+      <h2>一边是 Compose</h2>
+      <p>Jetpack Compose 确实强大，但它是一套全新的渲染体系。<strong>并非所有人都想离开 View</strong>——包括 Hibari 的作者。</p>
+    </div>
+    <div class="split-bridge">
+      <p>于是有了 Hibari：<strong>核心目标是为 Views 引入 Compose 的特性</strong>，其实现大量参考了 Jetpack Compose。</p>
+    </div>
+  </section>
+
+  <section id="concepts" class="section">
+    <h2>三个核心概念</h2>
+    <p class="section-lede">一切都由 <code>Modifier</code> 和 <code>Attribute</code> 构成，而 UI 的基本单元是 <code>@Tunable</code> 函数。</p>
+    <div class="cards">
+      <article class="card">
+        <h3><code>@Tunable</code> 函数</h3>
+        <p>等同 Compose 中的 <code>@Composable</code>：每个函数描述一部分 UI 的外观与行为，由编译器插件与运行时共同护航。</p>
+        <pre><code><span class="kw">@Tunable</span>
+<span class="kw">fun</span> <span class="fn">Greeting</span>(name: String) {
+    <span class="fn">Text</span>(text = <span class="str">"Hello, $name!"</span>)
+}</code></pre>
+      </article>
+      <article class="card">
+        <h3>Modifier 与 Attribute</h3>
+        <p>Modifier 存储 Attribute 信息；View 类型、方向、尺寸……一切皆 Attribute。组件函数把它们拼到 <code>Node</code> 上。</p>
+        <pre><code><span class="kw">fun</span> Modifier.<span class="fn">orientation</span>(
+    orientation: LinearOrientation
+): Modifier {
+    <span class="kw">return this</span>.<span class="fn">thenViewAttribute</span>&lt;LinearLayout, LinearOrientation&gt;(
+        uniqueKey, orientation
+    ) { <span class="cm">/* setOrientation(...) */</span> }
+}</code></pre>
+      </article>
+      <article class="card">
+        <h3><code>uniqueKey</code></h3>
+        <p>特殊的属性键：对它的引用会在<strong>编译期被替换为 UUID 字符串</strong>。运行时靠它在比对新旧节点树时定位同一个 Attribute。</p>
+        <pre><code><span class="cm">// 编译前</span>
+thenViewAttribute(uniqueKey, value) { … }
+
+<span class="cm">// 编译后（示意）</span>
+thenViewAttribute(<span class="str">"3f2a…c9"</span>, value) { … }</code></pre>
+      </article>
+    </div>
+  </section>
+
+  <section id="flow" class="section dark">
+    <h2>它如何工作</h2>
+    <p class="section-lede">运行时维护一棵虚拟的节点树——<code>Node</code>。状态改变时，Hibari 发起一次 <em>Retune</em>（近似 Compose 的「重组」）。</p>
+    <ol class="steps">
+      <li><b>描述</b><span>@Tunable 函数被调用，产出带 Attribute 的 Node 树。</span></li>
+      <li><b>编译</b><span>编译器插件替换 uniqueKey、检查 Tunable 调用规则。</span></li>
+      <li><b>变更</b><span>所依赖的状态改变，触发一次 Retune，生成新的节点树。</span></li>
+      <li><b>比对</b><span>按 Attribute key 对比新旧两棵树，找出真正的差异。</span></li>
+      <li><b>应用</b><span>只把变化下发给真实的 View，而不是重建一切。</span></li>
+    </ol>
+  </section>
+
+  <section id="demo" class="section">
+    <h2>示意演示：一次「Retune」</h2>
+    <p class="section-lede">修改名字，观察下方示意卡片如何「重新调优」。这是网页上的<strong>本地模拟</strong>，用于传达理念，并非 Hibari 运行时在真实设备上工作。</p>
+    <div class="demo">
+      <div class="demo-controls">
+        <label for="demo-name">名字（name）</label>
+        <input id="demo-name" type="text" value="Skylark" maxlength="24" autocomplete="off">
+        <p class="demo-status" role="status">Retune 次数：<b id="retune-count">0</b></p>
+      </div>
+      <div class="demo-stage">
+        <div class="demo-node">
+          <div class="demo-node-label">Node · <code>Greeting</code></div>
+          <p id="demo-greeting">Hello, Skylark!</p>
+          <ul id="demo-attrs" aria-label="Attribute 列表"></ul>
+        </div>
+        <p class="demo-hint" id="demo-hint">等待输入…</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="modules" class="section">
+    <h2>模块地图</h2>
+    <p class="section-lede">仓库按职责拆分，从注解、编译器插件到运行时、组件库与 Wear OS 层。</p>
+    <div class="module-grid">
+      <div class="module-group">
+        <h3>语言与编译</h3>
+        <dl>
+          <dt>hibari-runtime-annotations</dt><dd><code>@Tunable</code>、<code>@DisallowTunableCalls</code> 等注解</dd>
+          <dt>hibari-compiler</dt><dd>Kotlin（K2）编译器插件：调用检查与 uniqueKey 替换</dd>
+          <dt>hibari-runtime-lint</dt><dd>Lint 规则：Tunable 命名与用法检查</dd>
+        </dl>
+      </div>
+      <div class="module-group">
+        <h3>运行时与基础</h3>
+        <dl>
+          <dt>hibari-runtime</dt><dd>虚拟节点树、Attribute 比对与 Retune</dd>
+          <dt>hibari-ui</dt><dd>Modifier、节点模型与基础 UI 类型</dd>
+          <dt>hibari-ui-graphics</dt><dd>Path、角度等图形原语</dd>
+          <dt>hibari-foundation</dt><dd>布局、边距、动态尺寸等基础 Attribute</dd>
+        </dl>
+      </div>
+      <div class="module-group">
+        <h3>组件与扩展</h3>
+        <dl>
+          <dt>hibari-material</dt><dd>Material Components 封装（推荐的组件库）</dd>
+          <dt>hibari-animation</dt><dd>Animatable、进出场过渡与缓动</dd>
+          <dt>hibari-recyclerview</dt><dd>HibariAdapter / ViewHolder 与分页作用域</dd>
+          <dt>hibari-wear</dt><dd>Wear OS 组件层</dd>
+          <dt>app · wear-sample</dt><dd>手机与手表示例应用</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section id="usage" class="section dark">
+    <h2>上手之前</h2>
+    <div class="usage-grid">
+      <div class="notice">
+        <h3>注意</h3>
+        <p>目前组件封装仍不稳定，<strong>不推荐用于生产环境</strong>。API 仍在快速演进，WIP。</p>
+      </div>
+      <div class="notice">
+        <h3>组件库</h3>
+        <p>Material Components 是 Hibari 推荐的组件库，<code>Text</code>、<code>Button</code> 等函数都封装在 hibari-material 中；不用它就需要自己封装 <code>@Tunable</code> 函数。</p>
+      </div>
+    </div>
+    <h3 class="proguard-title">混淆规则</h3>
+    <pre class="proguard"><code>-keepclassmembers class * extends android.view.View {
+    &lt;init&gt;(android.content.Context);
+    &lt;init&gt;(android.content.Context, android.util.AttributeSet);
+    public android.view.ViewGroup$LayoutParams generateDefaultLayoutParams();
+}
+-keepclassmembers class * extends android.view.ViewGroup$LayoutParams {
+    &lt;init&gt;(int, int);
+}
+-keepnames class * extends android.view.View
+-keepnames class *.*$LayoutParams</code></pre>
+    <p class="roadmap">路线图上还有：单次测量的布局、声明式动画 API。</p>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <p class="footer-brand">Hibari <span>云雀</span></p>
+    <p>一个介于 Views 与 Compose 之间的 Android UI 构建工具。代码开源，许可证 LGPL-2.1。</p>
+    <ul class="thanks">
+      <li>感谢 <a href="https://cs.android.com/androidx" rel="noopener">Jetpack Compose</a> 的设计参照</li>
+      <li>感谢 <a href="https://github.com/BetterAndroid/Hikage" rel="noopener">Hikage</a></li>
+    </ul>
+    <a class="btn primary" href="https://github.com/huanli233/Hibari" rel="noopener">github.com/huanli233/Hibari</a>
+  </div>
+</footer>
+
+<script src="/assets/script.js"></script>
+</body>
+</html>
